@@ -1,0 +1,1145 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<meta name="theme-color" content="#43331e">
+<title>FVS · Essence Residence</title>
+<style>
+:root{
+  --marrom:#43331e; --dourado:#8c8467; --oliva:#5f7a3a; --oliva-claro:#e8eddc;
+  --fundo:#f6f3ec; --papel:#ffffff; --linha:#e3ddcd; --texto:#2b2418; --suave:#7a7360;
+  --nc:#a63d2f; --nc-claro:#f6e3df; --na:#8a8577; --na-claro:#eceae3; --alerta:#b58a2a; --alerta-claro:#f5ecd3;
+  --raio:12px;
+}
+*{box-sizing:border-box;-webkit-tap-highlight-color:transparent}
+html,body{margin:0;padding:0}
+body{font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,Helvetica,Arial,sans-serif;background:var(--fundo);color:var(--texto);font-size:15px;line-height:1.4}
+body.sem-scroll{overflow:hidden}
+h1,h2,h3{margin:0;font-weight:700}
+button,input,select,textarea{font:inherit;color:inherit}
+button{cursor:pointer}
+[hidden]{display:none!important}
+
+/* Login */
+#login{position:fixed;inset:0;z-index:1000;background:var(--marrom);display:flex;align-items:center;justify-content:center;padding:20px}
+.login-box{background:var(--papel);border-radius:16px;padding:28px 24px;width:100%;max-width:380px;box-shadow:0 20px 50px rgba(0,0,0,.35)}
+.login-box .marca{font-size:12px;letter-spacing:.18em;color:var(--dourado);text-transform:uppercase;font-weight:700}
+.login-box h1{font-size:24px;color:var(--marrom);margin:6px 0 4px}
+.login-box p{margin:0 0 18px;color:var(--suave);font-size:14px}
+.login-box label{display:block;font-size:12px;font-weight:700;color:var(--suave);text-transform:uppercase;letter-spacing:.06em;margin:12px 0 4px}
+.erro{background:var(--nc-claro);color:var(--nc);border-radius:8px;padding:9px 12px;font-size:14px;margin-top:12px}
+
+/* Campos */
+input[type=text],input[type=password],input[type=date],select,textarea,input:not([type]){width:100%;padding:11px 12px;border:1px solid var(--linha);border-radius:9px;background:#fff;min-height:44px}
+textarea{min-height:64px;resize:vertical}
+input:focus,select:focus,textarea:focus{outline:2px solid var(--dourado);outline-offset:0;border-color:var(--dourado)}
+
+/* Botões */
+.btn{display:inline-flex;align-items:center;justify-content:center;gap:6px;border:1px solid var(--marrom);background:var(--marrom);color:#fff;padding:10px 16px;border-radius:10px;font-weight:600;min-height:44px}
+.btn:hover{background:#56432a}
+.btn.sec{background:#fff;color:var(--marrom)}
+.btn.sec:hover{background:var(--fundo)}
+.btn.perigo{background:#fff;color:var(--nc);border-color:var(--nc)}
+.btn.sm{padding:6px 12px;min-height:36px;font-size:14px}
+.btn[disabled]{opacity:.55;cursor:default}
+.btn.bloco{width:100%}
+
+/* Topo e menu */
+#topo{background:var(--marrom);color:#fff;padding:12px 16px;display:flex;align-items:center;justify-content:space-between;gap:12px;position:sticky;top:0;z-index:50}
+#topo .t1{font-weight:700;font-size:17px}
+#topo .t2{font-size:12px;color:#d8cfae;letter-spacing:.06em}
+#topo .quem{display:flex;align-items:center;gap:10px;font-size:14px}
+#topo .quem button{background:transparent;border:1px solid #8c8467;color:#fff;border-radius:8px;padding:6px 10px}
+#menu{background:#fff;border-bottom:1px solid var(--linha);display:flex;gap:2px;overflow-x:auto;padding:0 8px;position:sticky;top:61px;z-index:40}
+#menu button{background:none;border:none;border-bottom:3px solid transparent;padding:13px 14px;font-weight:600;color:var(--suave);white-space:nowrap;display:flex;align-items:center;gap:6px}
+#menu button.on{color:var(--marrom);border-bottom-color:var(--dourado)}
+.pill{background:var(--nc);color:#fff;border-radius:99px;font-size:11px;padding:1px 7px;font-weight:700}
+main{max-width:1100px;margin:0 auto;padding:16px}
+
+/* Blocos */
+.barra{display:flex;flex-wrap:wrap;gap:10px;align-items:flex-end;margin-bottom:14px}
+.barra .campo{flex:1 1 150px;min-width:130px}
+.barra label{display:block;font-size:11px;font-weight:700;color:var(--suave);text-transform:uppercase;letter-spacing:.06em;margin-bottom:3px}
+.titulo-sec{display:flex;align-items:center;justify-content:space-between;gap:10px;margin:4px 0 12px}
+.titulo-sec h2{font-size:20px;color:var(--marrom)}
+.kpis{display:grid;grid-template-columns:repeat(auto-fit,minmax(130px,1fr));gap:10px;margin-bottom:14px}
+.kpi{background:#fff;border:1px solid var(--linha);border-radius:var(--raio);padding:12px 14px}
+.kpi b{display:block;font-size:24px;color:var(--marrom)}
+.kpi span{font-size:12px;color:var(--suave);text-transform:uppercase;letter-spacing:.05em}
+.kpi.alerta b{color:var(--nc)}
+.card{background:#fff;border:1px solid var(--linha);border-radius:var(--raio);padding:14px;margin-bottom:10px}
+.linha-item{display:flex;gap:12px;align-items:center;justify-content:space-between;flex-wrap:wrap}
+.linha-item .info{flex:1 1 220px;min-width:0}
+.linha-item .info b{display:block}
+.linha-item .sub{color:var(--suave);font-size:13px}
+.acoes{display:flex;gap:6px;flex-wrap:wrap}
+.vazio{text-align:center;color:var(--suave);padding:36px 12px;background:#fff;border:1px dashed var(--linha);border-radius:var(--raio)}
+.badge{display:inline-block;border-radius:99px;padding:3px 10px;font-size:12px;font-weight:700;white-space:nowrap}
+.badge.ok{background:var(--oliva-claro);color:var(--oliva)}
+.badge.nc{background:var(--nc-claro);color:var(--nc)}
+.badge.warn{background:var(--alerta-claro);color:var(--alerta)}
+.badge.na{background:var(--na-claro);color:var(--na)}
+.vencida{color:var(--nc);font-weight:700}
+table.tab{width:100%;border-collapse:collapse;background:#fff;border:1px solid var(--linha);border-radius:var(--raio);overflow:hidden;font-size:14px}
+table.tab th{background:var(--marrom);color:#fff;text-align:left;padding:9px 10px;font-size:12px;text-transform:uppercase;letter-spacing:.05em}
+table.tab td{padding:9px 10px;border-top:1px solid var(--linha);vertical-align:top}
+.rolar{overflow-x:auto}
+.chips{display:flex;flex-wrap:wrap;gap:8px}
+.chip{background:#fff;border:1px solid var(--linha);border-radius:99px;padding:6px 8px 6px 14px;display:flex;align-items:center;gap:8px;font-weight:600}
+.chip.off{opacity:.5;text-decoration:line-through}
+.chip button{border:none;background:var(--fundo);border-radius:99px;width:26px;height:26px;color:var(--suave)}
+.abas-int{display:flex;gap:6px;margin-bottom:12px}
+.abas-int button{border:1px solid var(--linha);background:#fff;border-radius:99px;padding:8px 16px;font-weight:600;color:var(--suave)}
+.abas-int button.on{background:var(--marrom);border-color:var(--marrom);color:#fff}
+
+/* Modal (fecha só pelo X) */
+#modais .modal{position:fixed;inset:0;background:rgba(43,36,24,.55);z-index:200;display:flex;align-items:flex-start;justify-content:center;overflow-y:auto;padding:20px 12px}
+.modal-box{background:var(--fundo);border-radius:16px;width:100%;max-width:560px;margin:auto;box-shadow:0 20px 50px rgba(0,0,0,.35);overflow:hidden}
+.modal-box.largo{max-width:860px}
+.modal-h{display:flex;align-items:center;justify-content:space-between;gap:10px;background:var(--marrom);color:#fff;padding:12px 16px;position:sticky;top:0;z-index:2}
+.modal-h h3{font-size:17px}
+.modal-h .x{background:transparent;border:1px solid #8c8467;color:#fff;border-radius:8px;width:38px;height:38px;font-size:22px;line-height:1}
+.modal-b{padding:16px}
+.modal-f{padding:12px 16px;border-top:1px solid var(--linha);display:flex;gap:10px;justify-content:flex-end;flex-wrap:wrap;background:#fff;position:sticky;bottom:0}
+.campo-v{margin-bottom:12px}
+.campo-v>label{display:block;font-size:12px;font-weight:700;color:var(--suave);text-transform:uppercase;letter-spacing:.06em;margin-bottom:4px}
+.grid2{display:grid;grid-template-columns:1fr 1fr;gap:12px}
+@media(max-width:560px){.grid2{grid-template-columns:1fr}.modal-box{border-radius:12px}#modais .modal{padding:8px 6px}}
+
+/* Itens da FVS */
+.item{background:#fff;border:1px solid var(--linha);border-left:5px solid var(--linha);border-radius:var(--raio);padding:12px;margin-bottom:10px}
+.item.r-C{border-left-color:var(--oliva)}
+.item.r-NC{border-left-color:var(--nc);background:#fffafa}
+.item.r-NA{border-left-color:var(--na)}
+.item-t{display:flex;gap:10px;margin-bottom:10px}
+.item-t .n{flex:0 0 28px;height:28px;border-radius:99px;background:var(--fundo);color:var(--marrom);font-weight:700;display:flex;align-items:center;justify-content:center;font-size:13px}
+.crit{font-size:13px;color:var(--suave);margin-top:2px}
+.seg{display:grid;grid-template-columns:1fr 1.2fr .7fr;gap:6px;margin-bottom:8px}
+.seg button{border:1px solid var(--linha);background:#fff;border-radius:10px;min-height:46px;font-weight:700;color:var(--suave)}
+.seg button.on.c{background:var(--oliva);border-color:var(--oliva);color:#fff}
+.seg button.on.nc{background:var(--nc);border-color:var(--nc);color:#fff}
+.seg button.on.na{background:var(--na);border-color:var(--na);color:#fff}
+.nc-box{display:grid;grid-template-columns:1fr 160px;gap:10px;background:var(--nc-claro);border-radius:10px;padding:10px;margin:8px 0}
+.nc-box label{font-size:11px;font-weight:700;color:var(--nc);text-transform:uppercase;letter-spacing:.05em;display:block}
+.nc-box input{margin-top:3px}
+@media(max-width:560px){.nc-box{grid-template-columns:1fr}}
+.fotos{display:flex;flex-wrap:wrap;gap:8px;margin-top:8px}
+.th{position:relative;width:76px;height:76px;border-radius:10px;overflow:hidden;background:var(--na-claro);border:1px solid var(--linha)}
+.th img{width:100%;height:100%;object-fit:cover;display:block;cursor:zoom-in}
+.th button{position:absolute;top:2px;right:2px;width:24px;height:24px;border-radius:99px;border:none;background:rgba(43,36,24,.75);color:#fff;font-size:16px;line-height:1}
+.btn-foto{display:inline-flex;align-items:center;justify-content:center;width:76px;height:76px;border:2px dashed var(--dourado);border-radius:10px;color:var(--marrom);font-weight:700;font-size:13px;text-align:center;cursor:pointer}
+.resumo-fix{position:sticky;top:64px;z-index:1;background:var(--oliva-claro);border:1px solid #cfd8bb;color:var(--oliva);border-radius:10px;padding:8px 12px;margin-bottom:10px;font-weight:600;font-size:14px}
+canvas#sig{width:100%;height:170px;background:#fff;border:2px dashed var(--dourado);border-radius:10px;touch-action:none;display:block}
+.sig-img{max-width:100%;height:110px;object-fit:contain;background:#fff;border:1px solid var(--linha);border-radius:10px;padding:6px}
+.sec-t{font-size:12px;font-weight:700;color:var(--dourado);text-transform:uppercase;letter-spacing:.12em;margin:18px 0 8px}
+
+/* Progresso, toast, lightbox */
+#prog{position:fixed;inset:0;z-index:500;background:rgba(43,36,24,.7);display:flex;align-items:center;justify-content:center;padding:20px}
+#prog div{background:#fff;border-radius:14px;padding:22px 26px;max-width:340px;text-align:center;font-weight:600;color:var(--marrom)}
+#prog small{display:block;color:var(--suave);font-weight:400;margin-top:6px}
+#toast{position:fixed;left:50%;bottom:22px;transform:translateX(-50%);z-index:600;display:flex;flex-direction:column;gap:8px;align-items:center;pointer-events:none;width:calc(100% - 24px);max-width:460px}
+.toast{background:var(--marrom);color:#fff;padding:11px 16px;border-radius:10px;box-shadow:0 8px 20px rgba(0,0,0,.3);font-size:14px;text-align:center}
+.toast.erro{background:var(--nc)}
+.lb-img{width:100%;max-height:75vh;object-fit:contain;background:#000;border-radius:8px}
+.nota{font-size:13px;color:var(--suave)}
+</style>
+</head>
+<body>
+
+<div id="login">
+  <form class="login-box" onsubmit="entrar(event)">
+    <div class="marca">Absoluta Construtora</div>
+    <h1>FVS · Essence Residence</h1>
+    <p>Ficha de Verificação de Serviço</p>
+    <label for="lg-user">Usuário</label>
+    <select id="lg-user"><option>Bárbara</option><option>Gabriel</option></select>
+    <label for="lg-senha">Senha</label>
+    <input id="lg-senha" type="password" autocomplete="current-password" required>
+    <div id="lg-erro" class="erro" hidden></div>
+    <button id="lg-btn" class="btn bloco" style="margin-top:16px" type="submit">Entrar</button>
+  </form>
+</div>
+
+<div id="app" hidden>
+  <div id="topo">
+    <div><div class="t1">FVS · Essence Residence</div><div class="t2">ABSOLUTA CONSTRUTORA</div></div>
+    <div class="quem"><span id="quem"></span><button type="button" onclick="sair(false)">Sair</button></div>
+  </div>
+  <nav id="menu"></nav>
+  <main id="view"></main>
+</div>
+
+<div id="modais"></div>
+<div id="toast"></div>
+
+<script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
+<script>
+'use strict';
+
+/* ================================================================== */
+/* Configuração                                                        */
+/* ================================================================== */
+const API_URL = 'COLE_AQUI_A_URL_DO_APPS_SCRIPT';
+
+const S = {
+  token: null, usuario: null, admin: false, aba: 'fvs',
+  d: { modelos: [], itens: [], fornecedores: [], apartamentos: [], fvs: [], pendencias: [] },
+  filtros: {
+    fvs: { status: '', apto: '', modelo: '', forn: '', q: '' },
+    pend: { status: 'abertas', apto: '', forn: '' }
+  },
+  hist: { aba: 'log', log: null, excl: null }
+};
+
+/* ================================================================== */
+/* Utilidades                                                          */
+/* ================================================================== */
+const $ = (s, r) => (r || document).querySelector(s);
+const ls = {
+  get(k) { try { return localStorage.getItem(k); } catch (e) { return null; } },
+  set(k, v) { try { localStorage.setItem(k, v); } catch (e) { /* ignora */ } },
+  del(k) { try { localStorage.removeItem(k); } catch (e) { /* ignora */ } }
+};
+function h(v) {
+  return String(v == null ? '' : v).replace(/[&<>"']/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
+}
+function uid() {
+  if (window.crypto && crypto.randomUUID) return crypto.randomUUID();
+  return 'xxxxxxxx-xxxx-4xxx-yxxx-xxxxxxxxxxxx'.replace(/[xy]/g, c => { const r = Math.random() * 16 | 0; return (c === 'x' ? r : (r & 3 | 8)).toString(16); });
+}
+function pad(n) { return String(n).padStart(2, '0'); }
+function hoje() { const d = new Date(); return d.getFullYear() + '-' + pad(d.getMonth() + 1) + '-' + pad(d.getDate()); }
+function somaDias(iso, n) { const p = iso.split('-').map(Number); const d = new Date(p[0], p[1] - 1, p[2] + n); return d.getFullYear() + '-' + pad(d.getMonth() + 1) + '-' + pad(d.getDate()); }
+function fmtData(iso) { const m = /^(\d{4})-(\d{2})-(\d{2})/.exec(iso || ''); return m ? m[3] + '/' + m[2] + '/' + m[1] : (iso || ''); }
+function fmtDataHora(s) { const m = /^(\d{4})-(\d{2})-(\d{2})[ T](\d{2}):(\d{2})/.exec(s || ''); return m ? m[3] + '/' + m[2] + '/' + m[1] + ' ' + m[4] + ':' + m[5] : (s || ''); }
+function nomeArquivoLimpo(s) { return String(s).normalize('NFD').replace(/[̀-ͯ]/g, '').replace(/[^a-zA-Z0-9._-]+/g, '_'); }
+function nat(a, b) { return String(a).localeCompare(String(b), 'pt-BR', { numeric: true }); }
+function unicos(arr) { return Array.from(new Set(arr.filter(Boolean))); }
+function ativo(x) { return x.ativo !== 'nao'; }
+
+function toast(msg, erro) {
+  const el = document.createElement('div');
+  el.className = 'toast' + (erro ? ' erro' : '');
+  el.textContent = msg;
+  $('#toast').appendChild(el);
+  setTimeout(() => el.remove(), erro ? 6000 : 3000);
+}
+
+function abrirModal(titulo, corpo, opts) {
+  opts = opts || {};
+  const el = document.createElement('div');
+  el.className = 'modal';
+  el.innerHTML = '<div class="modal-box' + (opts.largo ? ' largo' : '') + '"><div class="modal-h"><h3>' + h(titulo) +
+    '</h3><button class="x" type="button" aria-label="Fechar">×</button></div><div class="modal-b">' + corpo + '</div>' +
+    (opts.rodape ? '<div class="modal-f">' + opts.rodape + '</div>' : '') + '</div>';
+  $('.x', el).onclick = () => { if (opts.aoFechar) { if (opts.aoFechar() === false) return; } fecharModal(el); };
+  $('#modais').appendChild(el);
+  document.body.classList.add('sem-scroll');
+  return el;
+}
+function fecharModal(el) {
+  if (el && el.parentNode) el.remove();
+  if (!$('#modais').children.length) document.body.classList.remove('sem-scroll');
+}
+function confirmar(msg, textoBtn, perigo) {
+  return new Promise(res => {
+    const el = abrirModal('Confirmar', '<p style="margin:0">' + h(msg) + '</p>', {
+      rodape: '<button class="btn sec" id="cf-n" type="button">Cancelar</button><button class="btn ' + (perigo ? 'perigo' : '') + '" id="cf-s" type="button">' + h(textoBtn || 'Confirmar') + '</button>',
+      aoFechar: () => { res(false); }
+    });
+    $('#cf-n', el).onclick = () => { fecharModal(el); res(false); };
+    $('#cf-s', el).onclick = () => { fecharModal(el); res(true); };
+  });
+}
+function progresso(texto, sub) {
+  let el = $('#prog');
+  if (texto === null) { if (el) el.remove(); return; }
+  if (!el) { el = document.createElement('div'); el.id = 'prog'; document.body.appendChild(el); }
+  el.innerHTML = '<div>' + h(texto) + (sub ? '<small>' + h(sub) + '</small>' : '') + '</div>';
+}
+
+/* ================================================================== */
+/* API e sessão                                                        */
+/* ================================================================== */
+async function api(action, params, tentativas) {
+  if (!API_URL || API_URL.indexOf('COLE_AQUI') >= 0) throw new Error('O sistema ainda não está conectado ao Apps Script.');
+  tentativas = tentativas == null ? 1 : tentativas;
+  let ultimo;
+  for (let i = 0; i <= tentativas; i++) {
+    try {
+      const r = await fetch(API_URL, { method: 'POST', body: JSON.stringify(Object.assign({ action: action, token: S.token }, params || {})) });
+      const j = await r.json();
+      if (!j.ok) {
+        if (j.sessao === false) sair(true);
+        const e = new Error(j.erro || 'Erro no servidor'); e.servidor = true; throw e;
+      }
+      return j;
+    } catch (e) {
+      ultimo = e;
+      if (e.servidor) throw e;
+      if (i < tentativas) await new Promise(r => setTimeout(r, 1200));
+    }
+  }
+  throw new Error('Sem conexão com o servidor. Verifique a internet e tente de novo.');
+}
+
+async function entrar(ev) {
+  ev.preventDefault();
+  const btn = $('#lg-btn'); const er = $('#lg-erro');
+  er.hidden = true; btn.disabled = true; btn.textContent = 'Entrando…';
+  try {
+    const j = await api('login', { usuario: $('#lg-user').value, senha: $('#lg-senha').value }, 0);
+    S.token = j.token; S.usuario = j.usuario; S.admin = j.admin;
+    ls.set('fvs_sessao', JSON.stringify({ token: j.token, usuario: j.usuario, admin: j.admin }));
+    $('#lg-senha').value = '';
+    await iniciar();
+  } catch (e) {
+    er.textContent = e.message; er.hidden = false;
+  } finally {
+    btn.disabled = false; btn.textContent = 'Entrar';
+  }
+}
+
+function sair(expirou) {
+  S.token = null;
+  ls.del('fvs_sessao');
+  $('#login').hidden = false;
+  if (expirou) { const er = $('#lg-erro'); er.textContent = 'Sessão expirada. Entre novamente.'; er.hidden = false; }
+  else { $('#app').hidden = true; S.usuario = null; S.admin = false; }
+}
+
+async function iniciar() {
+  $('#quem').textContent = S.usuario;
+  $('#login').hidden = true;
+  $('#app').hidden = false;
+  if (!S.admin && S.aba === 'hist') S.aba = 'fvs';
+  try { await carregar(); } catch (e) { toast(e.message, true); }
+  render();
+}
+
+async function carregar() {
+  const j = await api('bootstrap');
+  S.d = { modelos: j.modelos, itens: j.itens, fornecedores: j.fornecedores, apartamentos: j.apartamentos, fvs: j.fvs, pendencias: j.pendencias };
+}
+
+/* ================================================================== */
+/* Navegação                                                           */
+/* ================================================================== */
+function render() {
+  const abertas = S.d.pendencias.filter(p => p.status === 'Aberta').length;
+  const abas = [['fvs', 'FVS'], ['pend', 'Pendências'], ['modelos', 'Modelos'], ['cad', 'Cadastros']];
+  if (S.admin) abas.push(['hist', 'Histórico']);
+  $('#menu').innerHTML = abas.map(a => '<button type="button" class="' + (S.aba === a[0] ? 'on' : '') + '" onclick="irPara(\'' + a[0] + '\')">' + a[1] +
+    (a[0] === 'pend' && abertas ? '<span class="pill">' + abertas + '</span>' : '') + '</button>').join('');
+  const v = $('#view');
+  if (S.aba === 'fvs') v.innerHTML = viewFVS();
+  else if (S.aba === 'pend') v.innerHTML = viewPend();
+  else if (S.aba === 'modelos') v.innerHTML = viewModelos();
+  else if (S.aba === 'cad') v.innerHTML = viewCadastros();
+  else if (S.aba === 'hist') { v.innerHTML = viewHist(); carregarHist(); }
+}
+function irPara(a) { S.aba = a; render(); window.scrollTo(0, 0); }
+async function atualizar() {
+  try { await carregar(); render(); toast('Dados atualizados'); } catch (e) { toast(e.message, true); }
+}
+
+function opcoes(lista, atual, vazio) {
+  return '<option value="">' + h(vazio) + '</option>' + lista.map(x => {
+    const v = typeof x === 'string' ? x : x[0]; const t = typeof x === 'string' ? x : x[1];
+    return '<option value="' + h(v) + '"' + (v === atual ? ' selected' : '') + '>' + h(t) + '</option>';
+  }).join('');
+}
+function badgeStatus(st) {
+  const c = st === 'Aprovada' ? 'ok' : (st === 'Com pendência' ? 'nc' : 'warn');
+  return '<span class="badge ' + c + '">' + h(st) + '</span>';
+}
+function vencida(p) { return p.status === 'Aberta' && p.prazo && p.prazo < hoje(); }
+
+/* ================================================================== */
+/* FVS — lista                                                         */
+/* ================================================================== */
+function fvsFiltradas() {
+  const F = S.filtros.fvs; const q = F.q.trim().toLowerCase();
+  return S.d.fvs.filter(x =>
+    (!F.status || x.status === F.status) && (!F.apto || x.apartamento === F.apto) &&
+    (!F.modelo || x.modelo_id === F.modelo) && (!F.forn || x.fornecedor_nome === F.forn) &&
+    (!q || (x.numero + ' ' + x.apartamento + ' ' + x.modelo_nome + ' ' + x.fornecedor_nome).toLowerCase().indexOf(q) >= 0)
+  ).sort((a, b) => (b.data + b.numero).localeCompare(a.data + a.numero));
+}
+function setF(grupo, campo, valor) { S.filtros[grupo][campo] = valor; render(); }
+
+function viewFVS() {
+  const F = S.filtros.fvs;
+  const lista = fvsFiltradas();
+  const abertas = S.d.pendencias.filter(p => p.status === 'Aberta');
+  const venc = abertas.filter(vencida).length;
+  const contAbertas = {};
+  abertas.forEach(p => { contAbertas[p.fvs_id] = (contAbertas[p.fvs_id] || 0) + 1; });
+  const aptos = unicos(S.d.fvs.map(x => x.apartamento)).sort(nat);
+  const modelos = S.d.modelos.map(m => [m.id, m.nome]);
+  const forns = unicos(S.d.fvs.map(x => x.fornecedor_nome)).sort(nat);
+  return '<div class="titulo-sec"><h2>Fichas de verificação</h2><div class="acoes">' +
+    '<button class="btn sec sm" type="button" onclick="atualizar()">Atualizar</button>' +
+    '<button class="btn" type="button" onclick="abrirEditorFVS()">+ Nova FVS</button></div></div>' +
+    '<div class="kpis"><div class="kpi"><b>' + S.d.fvs.length + '</b><span>FVS registradas</span></div>' +
+    '<div class="kpi"><b>' + S.d.fvs.filter(x => x.status === 'Com pendência').length + '</b><span>Com pendência</span></div>' +
+    '<div class="kpi"><b>' + abertas.length + '</b><span>Pendências abertas</span></div>' +
+    '<div class="kpi ' + (venc ? 'alerta' : '') + '"><b>' + venc + '</b><span>Vencidas</span></div></div>' +
+    '<div class="barra">' +
+    '<div class="campo"><label>Buscar</label><input type="text" value="' + h(F.q) + '" placeholder="Nº, apto, serviço…" oninput="S.filtros.fvs.q=this.value;filtrarListaFVS()"></div>' +
+    '<div class="campo"><label>Situação</label><select onchange="setF(\'fvs\',\'status\',this.value)">' + opcoes(['Aprovada', 'Com pendência', 'Reinspecionada'], F.status, 'Todas') + '</select></div>' +
+    '<div class="campo"><label>Apartamento</label><select onchange="setF(\'fvs\',\'apto\',this.value)">' + opcoes(aptos, F.apto, 'Todos') + '</select></div>' +
+    '<div class="campo"><label>Serviço</label><select onchange="setF(\'fvs\',\'modelo\',this.value)">' + opcoes(modelos, F.modelo, 'Todos') + '</select></div>' +
+    '<div class="campo"><label>Fornecedor</label><select onchange="setF(\'fvs\',\'forn\',this.value)">' + opcoes(forns, F.forn, 'Todos') + '</select></div></div>' +
+    '<div id="lista-fvs">' + listaFVSHTML(lista, contAbertas) + '</div>';
+}
+function listaFVSHTML(lista, cont) {
+  if (!lista.length) return '<div class="vazio">' + (S.d.fvs.length ? 'Nenhuma FVS com esses filtros.' : 'Nenhuma FVS registrada ainda. Toque em “+ Nova FVS” para começar.') + '</div>';
+  return lista.map(x => '<div class="card"><div class="linha-item"><div class="info"><b>' + h(x.numero) + ' · Apto ' + h(x.apartamento) + ' · ' + h(x.modelo_nome) + '</b>' +
+    '<div class="sub">' + fmtData(x.data) + (x.fornecedor_nome ? ' · ' + h(x.fornecedor_nome) : '') + (cont[x.id] ? ' · <span class="vencida">' + cont[x.id] + ' pendência(s) aberta(s)</span>' : '') + '</div></div>' +
+    badgeStatus(x.status) +
+    '<div class="acoes"><button class="btn sec sm" type="button" onclick="abrirFVS(\'' + x.id + '\')">Ver</button>' +
+    '<button class="btn sec sm" type="button" onclick="gerarPDFFVS(\'' + x.id + '\')">PDF</button></div></div></div>').join('');
+}
+function filtrarListaFVS() {
+  const abertas = S.d.pendencias.filter(p => p.status === 'Aberta'); const cont = {};
+  abertas.forEach(p => { cont[p.fvs_id] = (cont[p.fvs_id] || 0) + 1; });
+  const el = $('#lista-fvs'); if (el) el.innerHTML = listaFVSHTML(fvsFiltradas(), cont);
+}
+
+/* ================================================================== */
+/* Fotos                                                               */
+/* ================================================================== */
+const CF = {}; const CFP = {};
+function fotoDataUrl(id) {
+  if (CF[id]) return Promise.resolve(CF[id]);
+  if (CFP[id]) return CFP[id];
+  CFP[id] = api('getFoto', { id: id }).then(j => { CF[id] = j.dataUrl; delete CFP[id]; return j.dataUrl; }).catch(e => { delete CFP[id]; throw e; });
+  return CFP[id];
+}
+async function hidratarFotos(root) {
+  const imgs = Array.from(root.querySelectorAll('img[data-foto]')).filter(i => !i.getAttribute('src'));
+  let k = 0;
+  async function worker() {
+    while (k < imgs.length) {
+      const im = imgs[k++];
+      try { im.src = await fotoDataUrl(im.dataset.foto); } catch (e) { im.alt = 'Falha ao carregar'; }
+    }
+  }
+  await Promise.all([worker(), worker(), worker()]);
+}
+function comprimirImagem(file, max, q) {
+  max = max || 1280; q = q || 0.78;
+  return new Promise((res, rej) => {
+    const fr = new FileReader();
+    fr.onload = () => {
+      const img = new Image();
+      img.onload = () => {
+        const r = Math.min(1, max / Math.max(img.width, img.height));
+        const c = document.createElement('canvas');
+        c.width = Math.round(img.width * r); c.height = Math.round(img.height * r);
+        const g = c.getContext('2d'); g.fillStyle = '#fff'; g.fillRect(0, 0, c.width, c.height);
+        g.drawImage(img, 0, 0, c.width, c.height);
+        res(c.toDataURL('image/jpeg', q));
+      };
+      img.onerror = () => rej(new Error('Não foi possível ler a imagem.'));
+      img.src = fr.result;
+    };
+    fr.onerror = () => rej(new Error('Não foi possível ler a imagem.'));
+    fr.readAsDataURL(file);
+  });
+}
+function abrirLightbox(id) {
+  const el = abrirModal('Foto', '<img class="lb-img" alt="">', { largo: true });
+  const im = $('img', el);
+  if (CF[id]) im.src = CF[id]; else fotoDataUrl(id).then(u => { im.src = u; }).catch(() => { im.alt = 'Falha ao carregar'; });
+}
+function abrirLightboxSrc(src) {
+  const el = abrirModal('Foto', '<img class="lb-img" alt="">', { largo: true });
+  $('img', el).src = src;
+}
+
+/* ================================================================== */
+/* FVS — editor                                                        */
+/* ================================================================== */
+let E = null; let EMODAL = null; let rascTimer = null;
+
+function itensDoModelo(mid) {
+  return S.d.itens.filter(x => x.modelo_id === mid).sort((a, b) => Number(a.ordem) - Number(b.ordem)).map(x => ({
+    id: uid(), item_id: x.id, descricao: x.descricao, criterio: x.criterio, resultado: '', observacao: '', resp: '', prazo: '', fotos: []
+  }));
+}
+
+async function abrirEditorFVS(id) {
+  try {
+    if (id) {
+      progresso('Carregando FVS…');
+      const j = await api('getFVS', { id: id });
+      progresso(null);
+      const f = j.fvs;
+      const pend = {}; j.pendencias.forEach(p => { pend[p.fvs_item_id] = p; });
+      const sig = j.fotos.filter(x => x.tipo === 'assinatura')[0];
+      E = {
+        existente: true, fvs: {
+          id: f.id, data: f.data, apartamento: f.apartamento, modelo_id: f.modelo_id, modelo_nome: f.modelo_nome,
+          fornecedor_id: f.fornecedor_id, fornecedor_nome: f.fornecedor_nome, responsavel_obra: f.responsavel_obra,
+          observacao: f.observacao, assinatura_nome: f.assinatura_nome
+        },
+        itens: j.itens.map(it => {
+          const p = pend[it.id];
+          return {
+            id: it.id, item_id: it.item_id, descricao: it.descricao, criterio: it.criterio, resultado: it.resultado, observacao: it.observacao,
+            resp: p ? p.responsavel : '', prazo: p ? p.prazo : '',
+            fotos: j.fotos.filter(x => x.fvs_item_id === it.id && x.tipo === 'item').map(x => ({ id: x.id, existente: true }))
+          };
+        }),
+        fotosRemover: [], sigExistenteId: sig ? sig.id : null, sigRefazer: false, sigDesenhada: false
+      };
+    } else {
+      E = {
+        existente: false, fvs: {
+          id: uid(), data: hoje(), apartamento: '', modelo_id: '', modelo_nome: '', fornecedor_id: '', fornecedor_nome: '',
+          responsavel_obra: S.usuario, observacao: '', assinatura_nome: ''
+        },
+        itens: [], fotosRemover: [], sigExistenteId: null, sigRefazer: false, sigDesenhada: false
+      };
+      const rasc = ls.get('fvs_rascunho');
+      if (rasc) {
+        const ok = await confirmar('Existe um rascunho de FVS não salvo neste aparelho. Deseja continuar de onde parou?', 'Continuar rascunho');
+        if (ok) {
+          try { const r = JSON.parse(rasc); E.fvs = Object.assign(E.fvs, r.fvs); E.itens = (r.itens || []).map(it => Object.assign({ fotos: [] }, it)); } catch (e) { ls.del('fvs_rascunho'); }
+        } else ls.del('fvs_rascunho');
+      }
+    }
+  } catch (e) { progresso(null); toast(e.message, true); return; }
+  desenharEditor();
+}
+
+function desenharEditor() {
+  const ap = S.d.apartamentos.filter(ativo).sort((a, b) => nat(a.codigo, b.codigo));
+  const apAtual = E.fvs.apartamento;
+  const aptosOpts = ap.map(a => [a.codigo, (a.tipo === 'Área comum' ? '' : 'Apto ') + a.codigo]);
+  if (apAtual && !ap.some(a => a.codigo === apAtual)) aptosOpts.push([apAtual, apAtual]);
+  const modelos = S.d.modelos.filter(m => ativo(m) || m.id === E.fvs.modelo_id).map(m => [m.id, m.nome]);
+  const forns = S.d.fornecedores.filter(f => ativo(f) || f.id === E.fvs.fornecedor_id).map(f => [f.id, f.nome]);
+  const corpo =
+    '<div class="grid2"><div class="campo-v"><label>Data</label><input type="date" value="' + h(E.fvs.data) + '" oninput="E.fvs.data=this.value;rascunho()"></div>' +
+    '<div class="campo-v"><label>Apartamento / local</label><select onchange="E.fvs.apartamento=this.value;rascunho()">' + opcoes(aptosOpts, apAtual, 'Selecione…') + '</select></div>' +
+    '<div class="campo-v"><label>Serviço (modelo)</label><select id="ed-modelo" ' + (E.existente ? 'disabled' : '') + ' onchange="trocarModelo(this.value)">' + opcoes(modelos, E.fvs.modelo_id, 'Selecione…') + '</select></div>' +
+    '<div class="campo-v"><label>Fornecedor</label><select onchange="trocarFornecedor(this.value)">' + opcoes(forns, E.fvs.fornecedor_id, 'Sem fornecedor') + '</select></div></div>' +
+    '<div class="campo-v"><label>Responsável pela obra</label><input type="text" value="' + h(E.fvs.responsavel_obra) + '" oninput="E.fvs.responsavel_obra=this.value;rascunho()"></div>' +
+    '<div class="sec-t">Itens de verificação</div><div class="resumo-fix" id="ed-resumo"></div><div id="ed-itens"></div>' +
+    '<div class="campo-v"><label>Observações gerais</label><textarea oninput="E.fvs.observacao=this.value;rascunho()">' + h(E.fvs.observacao) + '</textarea></div>' +
+    '<div class="sec-t">Assinatura do responsável</div>' +
+    '<div class="campo-v"><label>Nome do responsável</label><input type="text" value="' + h(E.fvs.assinatura_nome) + '" oninput="E.fvs.assinatura_nome=this.value;rascunho()"></div>' +
+    '<div id="ed-sig"></div>';
+  EMODAL = abrirModal(E.existente ? 'Editar FVS' : 'Nova FVS', corpo, {
+    largo: true,
+    rodape: '<button class="btn sec" type="button" onclick="fecharEditor()">Cancelar</button><button class="btn" id="ed-salvar" type="button" onclick="salvarFVS()">Salvar FVS</button>',
+    aoFechar: () => { return confirmarFechamentoEditor(); }
+  });
+  desenharItens(); desenharAssinatura();
+}
+
+function confirmarFechamentoEditor() {
+  if (!E.itens.some(it => it.resultado || it.observacao || it.fotos.length) && !E.sigDesenhada) { E = null; return true; }
+  const ok = window.confirm(E.existente ? 'Descartar as alterações desta FVS?' : 'Sair sem salvar? Um rascunho (sem fotos e sem assinatura) fica guardado neste aparelho.');
+  if (ok) E = null;
+  return ok;
+}
+function fecharEditor() {
+  if (!EMODAL) return;
+  if (confirmarFechamentoEditor() !== false) { fecharModal(EMODAL); EMODAL = null; }
+}
+function rascunho() {
+  if (!E || E.existente) return;
+  clearTimeout(rascTimer);
+  rascTimer = setTimeout(() => {
+    if (!E) return;
+    ls.set('fvs_rascunho', JSON.stringify({
+      fvs: E.fvs, itens: E.itens.map(it => ({ id: it.id, item_id: it.item_id, descricao: it.descricao, criterio: it.criterio, resultado: it.resultado, observacao: it.observacao, resp: it.resp, prazo: it.prazo }))
+    }));
+  }, 500);
+}
+async function trocarModelo(mid) {
+  if (E.itens.some(it => it.resultado || it.observacao || it.fotos.length)) {
+    if (!(await confirmar('Trocar o serviço apaga as avaliações já feitas nesta FVS. Continuar?', 'Trocar'))) { $('#ed-modelo').value = E.fvs.modelo_id; return; }
+  }
+  const m = S.d.modelos.filter(x => x.id === mid)[0];
+  E.fvs.modelo_id = mid; E.fvs.modelo_nome = m ? m.nome : '';
+  E.itens = mid ? itensDoModelo(mid) : [];
+  desenharItens(); rascunho();
+}
+function trocarFornecedor(fid) {
+  const f = S.d.fornecedores.filter(x => x.id === fid)[0];
+  E.fvs.fornecedor_id = fid; E.fvs.fornecedor_nome = f ? f.nome : '';
+  rascunho();
+}
+function desenharItens() {
+  const box = $('#ed-itens');
+  if (!E.itens.length) { box.innerHTML = '<div class="vazio">Escolha o serviço para carregar os itens de verificação.</div>'; atualizarResumo(); return; }
+  box.innerHTML = E.itens.map((_, i) => itemCardHTML(i)).join('');
+  atualizarResumo(); hidratarFotos(box);
+}
+function itemCardHTML(i) {
+  const it = E.itens[i]; const nc = it.resultado === 'NC';
+  return '<div class="item ' + (it.resultado ? 'r-' + it.resultado : '') + '" id="it-' + i + '">' +
+    '<div class="item-t"><span class="n">' + (i + 1) + '</span><div><b>' + h(it.descricao) + '</b>' + (it.criterio ? '<div class="crit">' + h(it.criterio) + '</div>' : '') + '</div></div>' +
+    '<div class="seg"><button type="button" class="' + (it.resultado === 'C' ? 'on c' : '') + '" onclick="setRes(' + i + ',\'C\')">Conforme</button>' +
+    '<button type="button" class="' + (nc ? 'on nc' : '') + '" onclick="setRes(' + i + ',\'NC\')">Não conforme</button>' +
+    '<button type="button" class="' + (it.resultado === 'NA' ? 'on na' : '') + '" onclick="setRes(' + i + ',\'NA\')">N.A.</button></div>' +
+    '<textarea placeholder="Observação" oninput="E.itens[' + i + '].observacao=this.value;rascunho()">' + h(it.observacao) + '</textarea>' +
+    (nc ? '<div class="nc-box"><div><label>Responsável pela correção</label><input type="text" value="' + h(it.resp) + '" oninput="E.itens[' + i + '].resp=this.value;rascunho()"></div>' +
+      '<div><label>Prazo</label><input type="date" value="' + h(it.prazo) + '" oninput="E.itens[' + i + '].prazo=this.value;rascunho()"></div></div>' : '') +
+    '<div class="fotos">' + it.fotos.map((f, k) => '<div class="th"><img ' + (f.dataUrl ? 'src="' + f.dataUrl + '"' : 'data-foto="' + h(f.id) + '"') + ' alt="" onclick="' + (f.dataUrl ? 'abrirLightboxSrc(this.src)' : 'abrirLightbox(\'' + h(f.id) + '\')') + '">' +
+      '<button type="button" aria-label="Remover foto" onclick="rmFoto(' + i + ',' + k + ')">×</button></div>').join('') +
+    '<label class="btn-foto">+ Foto<input type="file" accept="image/*" multiple hidden onchange="addFotos(' + i + ',this)"></label></div></div>';
+}
+function redesenharItem(i) {
+  const el = $('#it-' + i);
+  if (el) { el.outerHTML = itemCardHTML(i); hidratarFotos($('#it-' + i)); }
+  atualizarResumo();
+}
+function setRes(i, r) {
+  const it = E.itens[i];
+  it.resultado = it.resultado === r ? '' : r;
+  if (it.resultado === 'NC') {
+    if (!it.resp) it.resp = E.fvs.fornecedor_nome || '';
+    if (!it.prazo) it.prazo = somaDias(hoje(), 7);
+  }
+  redesenharItem(i); rascunho();
+}
+async function addFotos(i, input) {
+  const arquivos = Array.from(input.files || []);
+  if (!arquivos.length) return;
+  progresso('Preparando fotos…');
+  try {
+    for (const a of arquivos) { E.itens[i].fotos.push({ id: uid(), dataUrl: await comprimirImagem(a), novo: true }); }
+  } catch (e) { toast(e.message, true); }
+  progresso(null);
+  redesenharItem(i);
+}
+function rmFoto(i, k) {
+  const f = E.itens[i].fotos[k];
+  if (f.existente) E.fotosRemover.push(f.id);
+  E.itens[i].fotos.splice(k, 1);
+  redesenharItem(i);
+}
+function atualizarResumo() {
+  const el = $('#ed-resumo'); if (!el) return;
+  const tot = E.itens.length; const av = E.itens.filter(it => it.resultado).length; const nc = E.itens.filter(it => it.resultado === 'NC').length;
+  el.textContent = tot ? (av + ' de ' + tot + ' itens avaliados · ' + nc + ' não conforme(s)') : 'Nenhum item carregado';
+}
+
+/* Assinatura */
+function desenharAssinatura() {
+  const box = $('#ed-sig');
+  if (E.sigExistenteId && !E.sigRefazer) {
+    box.innerHTML = '<img class="sig-img" data-foto="' + h(E.sigExistenteId) + '" alt="Assinatura"><div style="margin-top:8px"><button class="btn sec sm" type="button" onclick="E.sigRefazer=true;desenharAssinatura()">Refazer assinatura</button></div>';
+    hidratarFotos(box); return;
+  }
+  box.innerHTML = '<canvas id="sig"></canvas><div class="nota" style="margin:6px 0">Assine com o dedo ou a caneta no quadro acima.</div>' +
+    '<button class="btn sec sm" type="button" onclick="limparAssinatura()">Limpar</button>';
+  iniciarAssinatura();
+}
+function iniciarAssinatura() {
+  const c = $('#sig'); const dpr = window.devicePixelRatio || 1; const r = c.getBoundingClientRect();
+  c.width = Math.round(r.width * dpr); c.height = Math.round(r.height * dpr);
+  const g = c.getContext('2d'); g.scale(dpr, dpr); g.lineWidth = 2.2; g.lineCap = 'round'; g.lineJoin = 'round'; g.strokeStyle = '#2b2418';
+  let desenhando = false; let ult = null;
+  const pos = ev => { const b = c.getBoundingClientRect(); return { x: ev.clientX - b.left, y: ev.clientY - b.top }; };
+  c.onpointerdown = ev => { ev.preventDefault(); c.setPointerCapture(ev.pointerId); desenhando = true; ult = pos(ev); g.beginPath(); g.moveTo(ult.x, ult.y); g.lineTo(ult.x + 0.1, ult.y + 0.1); g.stroke(); E.sigDesenhada = true; };
+  c.onpointermove = ev => { if (!desenhando) return; const p = pos(ev); g.beginPath(); g.moveTo(ult.x, ult.y); g.lineTo(p.x, p.y); g.stroke(); ult = p; };
+  const fim = () => { desenhando = false; };
+  c.onpointerup = fim; c.onpointercancel = fim;
+}
+function limparAssinatura() {
+  const c = $('#sig'); if (!c) return;
+  const g = c.getContext('2d'); g.save(); g.setTransform(1, 0, 0, 1, 0, 0); g.clearRect(0, 0, c.width, c.height); g.restore();
+  E.sigDesenhada = false;
+}
+
+async function enviarComRetry(action, params) {
+  let ultimo;
+  for (let i = 0; i < 3; i++) {
+    try { return await api(action, params, 0); }
+    catch (e) { ultimo = e; if (e.servidor) throw e; await new Promise(r => setTimeout(r, 1500)); }
+  }
+  throw ultimo;
+}
+
+async function salvarFVS() {
+  const f = E.fvs;
+  if (!f.data) return toast('Informe a data.', true);
+  if (!f.apartamento) return toast('Selecione o apartamento ou local.', true);
+  if (!f.modelo_id) return toast('Selecione o serviço.', true);
+  const falta = E.itens.findIndex(it => !it.resultado);
+  if (falta >= 0) { toast('Avalie o item ' + (falta + 1) + ' (Conforme, Não conforme ou N.A.).', true); const el = $('#it-' + falta); if (el) el.scrollIntoView({ behavior: 'smooth', block: 'center' }); return; }
+  for (let i = 0; i < E.itens.length; i++) {
+    const it = E.itens[i];
+    if (it.resultado === 'NC' && (!it.resp.trim() || !it.prazo)) { toast('Informe responsável e prazo no item ' + (i + 1) + '.', true); const el = $('#it-' + i); if (el) el.scrollIntoView({ behavior: 'smooth', block: 'center' }); return; }
+  }
+  if (!f.assinatura_nome.trim()) return toast('Informe o nome de quem assina.', true);
+  const temSigNova = E.sigDesenhada && $('#sig');
+  if (!temSigNova && !(E.sigExistenteId && !E.sigRefazer)) return toast('Falta a assinatura do responsável.', true);
+
+  const itens = E.itens.map((it, i) => ({ id: it.id, item_id: it.item_id, ordem: i + 1, descricao: it.descricao, criterio: it.criterio, resultado: it.resultado, observacao: it.observacao }));
+  const pend = {};
+  E.itens.forEach(it => { if (it.resultado === 'NC') pend[it.id] = { descricao: it.descricao + (it.observacao ? ' - ' + it.observacao : ''), responsavel: it.resp.trim(), prazo: it.prazo }; });
+  const novas = [];
+  E.itens.forEach(it => it.fotos.forEach(ft => { if (ft.novo) novas.push({ item: it.id, ft: ft }); }));
+  const sigData = temSigNova ? $('#sig').toDataURL('image/png') : null;
+  const btn = $('#ed-salvar'); btn.disabled = true;
+
+  try {
+    progresso('Salvando FVS…');
+    const r = await enviarComRetry('salvarFVS', { fvs: f, itens: itens, pendencias: pend });
+    const falhas = [];
+    let n = 0; const total = novas.length + (sigData ? 1 : 0);
+    for (const x of novas) {
+      n++; progresso('Enviando fotos…', n + ' de ' + total);
+      try { await enviarComRetry('uploadFoto', { id: x.ft.id, fvs_id: f.id, fvs_item_id: x.item, tipo: 'item', dataUrl: x.ft.dataUrl }); }
+      catch (e) { falhas.push(e.message); }
+    }
+    if (sigData) {
+      n++; progresso('Enviando assinatura…', n + ' de ' + total);
+      try {
+        await enviarComRetry('uploadFoto', { id: uid(), fvs_id: f.id, tipo: 'assinatura', dataUrl: sigData });
+        if (E.sigExistenteId) { await enviarComRetry('excluirFoto', { id: E.sigExistenteId }); }
+      } catch (e) { falhas.push('assinatura: ' + e.message); }
+    }
+    for (const id of E.fotosRemover) { try { await enviarComRetry('excluirFoto', { id: id }); } catch (e) { falhas.push(e.message); } }
+    ls.del('fvs_rascunho');
+    progresso('Atualizando…');
+    await carregar();
+    progresso(null);
+    fecharModal(EMODAL); EMODAL = null; E = null;
+    render();
+    if (falhas.length) toast(r.numero + ' salva, mas ' + falhas.length + ' envio(s) falharam. Abra a FVS em Editar para reenviar.', true);
+    else toast(r.numero + ' salva · ' + r.status);
+  } catch (e) {
+    progresso(null); btn.disabled = false;
+    toast(e.message, true);
+  }
+}
+
+/* ================================================================== */
+/* FVS — detalhe                                                       */
+/* ================================================================== */
+async function abrirFVS(id) {
+  try {
+    progresso('Carregando FVS…');
+    const j = await api('getFVS', { id: id });
+    progresso(null);
+    const f = j.fvs;
+    const pendPorItem = {}; j.pendencias.forEach(p => { pendPorItem[p.fvs_item_id] = p; });
+    const sig = j.fotos.filter(x => x.tipo === 'assinatura')[0];
+    const rot = { C: ['ok', 'Conforme'], NC: ['nc', 'Não conforme'], NA: ['na', 'N.A.'] };
+    const corpo =
+      '<div class="card"><div class="linha-item"><div class="info"><b>' + h(f.numero) + ' · ' + h(f.modelo_nome) + '</b><div class="sub">Apto ' + h(f.apartamento) + ' · ' + fmtData(f.data) +
+      (f.fornecedor_nome ? ' · ' + h(f.fornecedor_nome) : '') + '</div><div class="sub">Responsável pela obra: ' + h(f.responsavel_obra || '-') + ' · Criada por ' + h(f.criado_por) + '</div></div>' + badgeStatus(f.status) + '</div></div>' +
+      j.itens.map((it, i) => {
+        const p = pendPorItem[it.id]; const r = rot[it.resultado] || ['na', '-'];
+        const fotos = j.fotos.filter(x => x.fvs_item_id === it.id && x.tipo !== 'assinatura');
+        return '<div class="item r-' + h(it.resultado) + '"><div class="item-t"><span class="n">' + (i + 1) + '</span><div><b>' + h(it.descricao) + '</b>' + (it.criterio ? '<div class="crit">' + h(it.criterio) + '</div>' : '') + '</div></div>' +
+          '<span class="badge ' + r[0] + '">' + r[1] + '</span>' + (it.observacao ? '<p style="margin:8px 0 0">' + h(it.observacao) + '</p>' : '') +
+          (p ? '<div class="nc-box" style="grid-template-columns:1fr"><div><label>Pendência · ' + h(p.status) + '</label>' + h(p.responsavel) + ' · prazo ' + fmtData(p.prazo) +
+            (p.reinspecoes && p.reinspecoes !== '0' ? ' · ' + p.reinspecoes + ' reinspeção(ões)' : '') + (p.reinspecao_obs ? '<br><span class="nota">' + h(p.reinspecao_obs) + '</span>' : '') + '</div></div>' : '') +
+          (fotos.length ? '<div class="fotos">' + fotos.map(x => '<div class="th"><img data-foto="' + h(x.id) + '" alt="" onclick="abrirLightbox(\'' + h(x.id) + '\')"></div>').join('') + '</div>' : '') + '</div>';
+      }).join('') +
+      (f.observacao ? '<div class="sec-t">Observações gerais</div><div class="card">' + h(f.observacao) + '</div>' : '') +
+      '<div class="sec-t">Assinatura</div><div class="card"><b>' + h(f.assinatura_nome || '-') + '</b>' + (sig ? '<div style="margin-top:8px"><img class="sig-img" data-foto="' + h(sig.id) + '" alt="Assinatura"></div>' : '') + '</div>';
+    const rodape = (S.admin ? '<button class="btn perigo" type="button" id="dt-exc">Excluir</button>' : '') +
+      '<button class="btn sec" type="button" id="dt-ed">Editar</button><button class="btn" type="button" id="dt-pdf">Gerar PDF</button>';
+    const el = abrirModal('FVS ' + f.numero, corpo, { largo: true, rodape: rodape });
+    hidratarFotos(el);
+    $('#dt-pdf', el).onclick = () => gerarPDFFVS(id);
+    $('#dt-ed', el).onclick = () => { fecharModal(el); abrirEditorFVS(id); };
+    if (S.admin) $('#dt-exc', el).onclick = async () => {
+      if (!(await confirmar('Excluir a ' + f.numero + ' com todos os itens, pendências e fotos? O conteúdo fica preservado no histórico de exclusões.', 'Excluir', true))) return;
+      try { progresso('Excluindo…'); await api('excluirFVS', { id: id }); await carregar(); progresso(null); fecharModal(el); render(); toast('FVS excluída'); }
+      catch (e) { progresso(null); toast(e.message, true); }
+    };
+  } catch (e) { progresso(null); toast(e.message, true); }
+}
+
+/* ================================================================== */
+/* Pendências                                                          */
+/* ================================================================== */
+function pendFiltradas() {
+  const F = S.filtros.pend;
+  return S.d.pendencias.filter(p => {
+    if (p.status === 'Cancelada') return false;
+    if (F.status === 'abertas' && p.status !== 'Aberta') return false;
+    if (F.status === 'vencidas' && !vencida(p)) return false;
+    if (F.status === 'resolvidas' && p.status !== 'Resolvida') return false;
+    if (F.apto && p.apartamento !== F.apto) return false;
+    if (F.forn && p.fornecedor_nome !== F.forn) return false;
+    return true;
+  }).sort((a, b) => (a.status === 'Aberta' ? 0 : 1) - (b.status === 'Aberta' ? 0 : 1) || String(a.prazo).localeCompare(String(b.prazo)));
+}
+function viewPend() {
+  const F = S.filtros.pend; const lista = pendFiltradas();
+  const aptos = unicos(S.d.pendencias.map(x => x.apartamento)).sort(nat);
+  const forns = unicos(S.d.pendencias.map(x => x.fornecedor_nome)).sort(nat);
+  return '<div class="titulo-sec"><h2>Pendências</h2><div class="acoes"><button class="btn sec sm" type="button" onclick="atualizar()">Atualizar</button>' +
+    '<button class="btn sm" type="button" onclick="gerarPDFPendencias()">Gerar PDF</button></div></div>' +
+    '<div class="barra"><div class="campo"><label>Situação</label><select onchange="setF(\'pend\',\'status\',this.value)">' +
+    [['abertas', 'Abertas'], ['vencidas', 'Vencidas'], ['resolvidas', 'Resolvidas'], ['todas', 'Todas']].map(o => '<option value="' + o[0] + '"' + (F.status === o[0] ? ' selected' : '') + '>' + o[1] + '</option>').join('') + '</select></div>' +
+    '<div class="campo"><label>Apartamento</label><select onchange="setF(\'pend\',\'apto\',this.value)">' + opcoes(aptos, F.apto, 'Todos') + '</select></div>' +
+    '<div class="campo"><label>Fornecedor</label><select onchange="setF(\'pend\',\'forn\',this.value)">' + opcoes(forns, F.forn, 'Todos') + '</select></div></div>' +
+    (lista.length ? lista.map(p => '<div class="card"><div class="linha-item"><div class="info"><b>Apto ' + h(p.apartamento) + ' · ' + h(p.servico) + '</b>' +
+      '<div>' + h(p.descricao) + '</div><div class="sub">' + (p.fornecedor_nome ? h(p.fornecedor_nome) + ' · ' : '') + 'Responsável: ' + h(p.responsavel) + ' · Prazo: <span class="' + (vencida(p) ? 'vencida' : '') + '">' + fmtData(p.prazo) + (vencida(p) ? ' (vencido)' : '') + '</span>' +
+      (p.reinspecoes && p.reinspecoes !== '0' ? ' · ' + p.reinspecoes + ' reinspeção(ões)' : '') + '</div></div>' +
+      '<span class="badge ' + (p.status === 'Aberta' ? 'nc' : 'ok') + '">' + h(p.status) + '</span>' +
+      '<div class="acoes"><button class="btn sec sm" type="button" onclick="abrirFVS(\'' + p.fvs_id + '\')">Ver FVS</button>' +
+      (p.status === 'Aberta' ? '<button class="btn sm" type="button" onclick="abrirReinspecao(\'' + p.id + '\')">Reinspecionar</button>' : '') + '</div></div></div>').join('')
+      : '<div class="vazio">Nenhuma pendência com esses filtros.</div>');
+}
+let R = null;
+function abrirReinspecao(id) {
+  const p = S.d.pendencias.filter(x => x.id === id)[0]; if (!p) return;
+  R = { id: id, p: p, fotos: [] };
+  const el = abrirModal('Reinspeção', '<div class="card"><b>Apto ' + h(p.apartamento) + ' · ' + h(p.servico) + '</b><div>' + h(p.descricao) + '</div><div class="sub">Responsável: ' + h(p.responsavel) + ' · Prazo: ' + fmtData(p.prazo) + '</div></div>' +
+    '<div class="campo-v"><label>Resultado</label><select id="ri-res" onchange="$(\'#ri-prazo-box\').hidden=this.value!==\'nok\'"><option value="ok">Corrigido e aprovado</option><option value="nok">Ainda não conforme</option></select></div>' +
+    '<div class="campo-v" id="ri-prazo-box" hidden><label>Novo prazo (opcional)</label><input type="date" id="ri-prazo" value="' + h(somaDias(hoje(), 7)) + '"></div>' +
+    '<div class="campo-v"><label>Observação</label><textarea id="ri-obs"></textarea></div>' +
+    '<div class="campo-v"><label>Fotos da reinspeção</label><div class="fotos" id="ri-fotos"></div></div>',
+    { rodape: '<button class="btn" id="ri-salvar" type="button" onclick="salvarReinspecao()">Registrar reinspeção</button>' });
+  R.el = el; desenharFotosReinsp();
+}
+function desenharFotosReinsp() {
+  $('#ri-fotos').innerHTML = R.fotos.map((f, k) => '<div class="th"><img src="' + f.dataUrl + '" alt="" onclick="abrirLightboxSrc(this.src)"><button type="button" onclick="R.fotos.splice(' + k + ',1);desenharFotosReinsp()">×</button></div>').join('') +
+    '<label class="btn-foto">+ Foto<input type="file" accept="image/*" multiple hidden onchange="addFotosReinsp(this)"></label>';
+}
+async function addFotosReinsp(input) {
+  const arq = Array.from(input.files || []); if (!arq.length) return;
+  progresso('Preparando fotos…');
+  try { for (const a of arq) R.fotos.push({ id: uid(), dataUrl: await comprimirImagem(a) }); } catch (e) { toast(e.message, true); }
+  progresso(null); desenharFotosReinsp();
+}
+async function salvarReinspecao() {
+  const res = $('#ri-res').value; const btn = $('#ri-salvar'); btn.disabled = true;
+  try {
+    progresso('Registrando reinspeção…');
+    await enviarComRetry('reinspecionar', { id: R.id, resultado: res, obs: $('#ri-obs').value, novo_prazo: res === 'nok' ? $('#ri-prazo').value : '' });
+    const falhas = [];
+    let n = 0;
+    for (const f of R.fotos) {
+      n++; progresso('Enviando fotos…', n + ' de ' + R.fotos.length);
+      try { await enviarComRetry('uploadFoto', { id: f.id, fvs_id: R.p.fvs_id, fvs_item_id: R.p.fvs_item_id, pendencia_id: R.id, tipo: 'reinspecao', dataUrl: f.dataUrl }); }
+      catch (e) { falhas.push(e.message); }
+    }
+    await carregar(); progresso(null);
+    fecharModal(R.el); R = null; render();
+    toast(falhas.length ? 'Reinspeção registrada, mas ' + falhas.length + ' foto(s) não foram enviadas.' : (res === 'ok' ? 'Pendência resolvida' : 'Reinspeção registrada'), falhas.length > 0);
+  } catch (e) { progresso(null); btn.disabled = false; toast(e.message, true); }
+}
+
+/* ================================================================== */
+/* Modelos                                                             */
+/* ================================================================== */
+function viewModelos() {
+  const lista = S.d.modelos.slice().sort((a, b) => (ativo(b) - ativo(a)) || nat(a.nome, b.nome));
+  return '<div class="titulo-sec"><h2>Modelos de FVS</h2><button class="btn" type="button" onclick="abrirModelo()">+ Novo modelo</button></div>' +
+    '<p class="nota" style="margin-top:0">Cada modelo é um serviço com seus itens e critérios. FVS já feitas guardam uma cópia dos itens, então editar um modelo não altera o que já foi registrado.</p>' +
+    (lista.length ? lista.map(m => {
+      const n = S.d.itens.filter(i => i.modelo_id === m.id).length;
+      return '<div class="card" style="' + (ativo(m) ? '' : 'opacity:.6') + '"><div class="linha-item"><div class="info"><b>' + h(m.nome) + '</b><div class="sub">' + n + ' itens' + (m.descricao ? ' · ' + h(m.descricao) : '') + (ativo(m) ? '' : ' · arquivado') + '</div></div>' +
+        '<div class="acoes"><button class="btn sec sm" type="button" onclick="abrirModelo(\'' + m.id + '\')">Editar</button>' +
+        '<button class="btn sec sm" type="button" onclick="abrirModelo(\'' + m.id + '\',true)">Duplicar</button>' +
+        '<button class="btn sec sm" type="button" onclick="alternarAtivo(\'Modelos\',\'' + m.id + '\')">' + (ativo(m) ? 'Arquivar' : 'Reativar') + '</button></div></div></div>';
+    }).join('') : '<div class="vazio">Nenhum modelo cadastrado.</div>');
+}
+let M = null; let MMODAL = null;
+function abrirModelo(id, duplicar) {
+  const m = id ? S.d.modelos.filter(x => x.id === id)[0] : null;
+  const itens = m ? S.d.itens.filter(i => i.modelo_id === m.id).sort((a, b) => Number(a.ordem) - Number(b.ordem)).map(i => ({ id: duplicar ? uid() : i.id, descricao: i.descricao, criterio: i.criterio })) : [{ id: uid(), descricao: '', criterio: '' }];
+  M = { id: (m && !duplicar) ? m.id : uid(), nome: m ? (duplicar ? m.nome + ' (cópia)' : m.nome) : '', descricao: m ? m.descricao : '', itens: itens };
+  MMODAL = abrirModal(m && !duplicar ? 'Editar modelo' : 'Novo modelo',
+    '<div class="campo-v"><label>Nome do serviço</label><input type="text" value="' + h(M.nome) + '" oninput="M.nome=this.value"></div>' +
+    '<div class="campo-v"><label>Descrição (opcional)</label><input type="text" value="' + h(M.descricao) + '" oninput="M.descricao=this.value"></div>' +
+    '<div class="sec-t">Itens e critérios</div><div id="m-itens"></div>' +
+    '<button class="btn sec" type="button" onclick="mAdd()">+ Adicionar item</button>',
+    { largo: true, rodape: '<button class="btn" id="m-salvar" type="button" onclick="salvarModelo()">Salvar modelo</button>' });
+  desenharModeloItens();
+}
+function desenharModeloItens() {
+  $('#m-itens').innerHTML = M.itens.map((it, i) => '<div class="card"><div class="campo-v"><label>Item ' + (i + 1) + '</label><input type="text" value="' + h(it.descricao) + '" placeholder="O que será verificado" oninput="M.itens[' + i + '].descricao=this.value"></div>' +
+    '<div class="campo-v"><label>Critério de aceitação</label><textarea placeholder="Como saber se está conforme" oninput="M.itens[' + i + '].criterio=this.value">' + h(it.criterio) + '</textarea></div>' +
+    '<div class="acoes"><button class="btn sec sm" type="button" onclick="mMove(' + i + ',-1)">↑</button><button class="btn sec sm" type="button" onclick="mMove(' + i + ',1)">↓</button>' +
+    '<button class="btn perigo sm" type="button" onclick="mDel(' + i + ')">Remover</button></div></div>').join('');
+}
+function mAdd() { M.itens.push({ id: uid(), descricao: '', criterio: '' }); desenharModeloItens(); const c = $('#m-itens').lastElementChild; if (c) c.scrollIntoView({ behavior: 'smooth', block: 'center' }); }
+function mDel(i) { M.itens.splice(i, 1); desenharModeloItens(); }
+function mMove(i, d) { const j = i + d; if (j < 0 || j >= M.itens.length) return; const t = M.itens[i]; M.itens[i] = M.itens[j]; M.itens[j] = t; desenharModeloItens(); }
+async function salvarModelo() {
+  if (!M.nome.trim()) return toast('Informe o nome do serviço.', true);
+  const itens = M.itens.filter(i => i.descricao.trim());
+  if (!itens.length) return toast('Inclua ao menos um item com descrição.', true);
+  const btn = $('#m-salvar'); btn.disabled = true; btn.textContent = 'Salvando…';
+  try {
+    await enviarComRetry('salvarModelo', { modelo: { id: M.id, nome: M.nome, descricao: M.descricao }, itens: itens });
+    await carregar(); fecharModal(MMODAL); MMODAL = null; render(); toast('Modelo salvo');
+  } catch (e) { btn.disabled = false; btn.textContent = 'Salvar modelo'; toast(e.message, true); }
+}
+async function alternarAtivo(aba, id) {
+  const lista = aba === 'Modelos' ? S.d.modelos : (aba === 'Fornecedores' ? S.d.fornecedores : S.d.apartamentos);
+  const x = lista.filter(i => i.id === id)[0]; if (!x) return;
+  const antes = x.ativo; x.ativo = ativo(x) ? 'nao' : 'sim'; render();
+  try { await api('alterarAtivo', { aba: aba, id: id, ativo: x.ativo === 'sim' }); }
+  catch (e) { x.ativo = antes; render(); toast(e.message, true); }
+}
+
+/* ================================================================== */
+/* Cadastros                                                           */
+/* ================================================================== */
+function viewCadastros() {
+  const forns = S.d.fornecedores.slice().sort((a, b) => (ativo(b) - ativo(a)) || nat(a.nome, b.nome));
+  const aptos = S.d.apartamentos.slice().sort((a, b) => nat(a.codigo, b.codigo));
+  return '<div class="titulo-sec"><h2>Fornecedores</h2><button class="btn" type="button" onclick="abrirFornecedor()">+ Novo fornecedor</button></div>' +
+    (forns.length ? forns.map(f => '<div class="card" style="' + (ativo(f) ? '' : 'opacity:.6') + '"><div class="linha-item"><div class="info"><b>' + h(f.nome) + '</b><div class="sub">' + h(f.servicos) + (f.contato ? ' · ' + h(f.contato) : '') + (ativo(f) ? '' : ' · arquivado') + '</div></div>' +
+      '<div class="acoes"><button class="btn sec sm" type="button" onclick="abrirFornecedor(\'' + f.id + '\')">Editar</button><button class="btn sec sm" type="button" onclick="alternarAtivo(\'Fornecedores\',\'' + f.id + '\')">' + (ativo(f) ? 'Arquivar' : 'Reativar') + '</button></div></div></div>').join('')
+      : '<div class="vazio">Nenhum fornecedor cadastrado.</div>') +
+    '<div class="titulo-sec" style="margin-top:22px"><h2>Apartamentos e locais</h2><button class="btn" type="button" onclick="abrirApartamentos()">+ Adicionar</button></div>' +
+    (aptos.length ? '<div class="chips">' + aptos.map(a => '<div class="chip ' + (ativo(a) ? '' : 'off') + '">' + (a.tipo === 'Área comum' ? '' : 'Apto ') + h(a.codigo) + '<button type="button" title="' + (ativo(a) ? 'Arquivar' : 'Reativar') + '" onclick="alternarAtivo(\'Apartamentos\',\'' + a.id + '\')">' + (ativo(a) ? '×' : '↺') + '</button></div>').join('') + '</div>'
+      : '<div class="vazio">Nenhum apartamento cadastrado. Toque em “+ Adicionar” e cole a lista (um por linha).</div>');
+}
+function abrirFornecedor(id) {
+  const f = id ? S.d.fornecedores.filter(x => x.id === id)[0] : null;
+  const el = abrirModal(f ? 'Editar fornecedor' : 'Novo fornecedor',
+    '<div class="campo-v"><label>Nome</label><input type="text" id="fn-nome" value="' + h(f ? f.nome : '') + '"></div>' +
+    '<div class="campo-v"><label>Serviços que executa</label><input type="text" id="fn-serv" value="' + h(f ? f.servicos : '') + '"></div>' +
+    '<div class="campo-v"><label>Contato</label><input type="text" id="fn-cont" value="' + h(f ? f.contato : '') + '"></div>',
+    { rodape: '<button class="btn" id="fn-salvar" type="button">Salvar</button>' });
+  $('#fn-salvar', el).onclick = async () => {
+    const nome = $('#fn-nome', el).value.trim(); if (!nome) return toast('Informe o nome.', true);
+    const btn = $('#fn-salvar', el); btn.disabled = true;
+    try {
+      await enviarComRetry('salvarFornecedor', { fornecedor: { id: f ? f.id : uid(), nome: nome, servicos: $('#fn-serv', el).value, contato: $('#fn-cont', el).value } });
+      await carregar(); fecharModal(el); render(); toast('Fornecedor salvo');
+    } catch (e) { btn.disabled = false; toast(e.message, true); }
+  };
+}
+function abrirApartamentos() {
+  const el = abrirModal('Adicionar apartamentos / locais',
+    '<div class="campo-v"><label>Tipo</label><select id="ap-tipo"><option>Apartamento</option><option>Área comum</option></select></div>' +
+    '<div class="campo-v"><label>Lista (um por linha ou separados por vírgula)</label><textarea id="ap-lista" style="min-height:140px" placeholder="11&#10;12&#10;21"></textarea></div>' +
+    '<p class="nota">Códigos que já existem são ignorados.</p>',
+    { rodape: '<button class="btn" id="ap-salvar" type="button">Adicionar</button>' });
+  $('#ap-salvar', el).onclick = async () => {
+    const codigos = $('#ap-lista', el).value.split(/[\n,;]+/).map(s => s.trim()).filter(Boolean);
+    if (!codigos.length) return toast('Digite ao menos um código.', true);
+    const btn = $('#ap-salvar', el); btn.disabled = true;
+    try {
+      const r = await enviarComRetry('salvarApartamentos', { tipo: $('#ap-tipo', el).value, codigos: codigos });
+      await carregar(); fecharModal(el); render(); toast(r.criados + ' adicionado(s)');
+    } catch (e) { btn.disabled = false; toast(e.message, true); }
+  };
+}
+
+/* ================================================================== */
+/* Histórico (somente Bárbara)                                         */
+/* ================================================================== */
+function viewHist() {
+  return '<div class="titulo-sec"><h2>Histórico</h2><button class="btn sec sm" type="button" onclick="S.hist.log=null;S.hist.excl=null;render()">Atualizar</button></div>' +
+    '<div class="abas-int"><button type="button" class="' + (S.hist.aba === 'log' ? 'on' : '') + '" onclick="S.hist.aba=\'log\';render()">Alterações</button>' +
+    '<button type="button" class="' + (S.hist.aba === 'excl' ? 'on' : '') + '" onclick="S.hist.aba=\'excl\';render()">Excluídos</button></div><div id="hist-corpo"><div class="vazio">Carregando…</div></div>';
+}
+async function carregarHist() {
+  try {
+    if (S.hist.aba === 'log') {
+      if (!S.hist.log) S.hist.log = (await api('getLog')).log;
+      const corpo = $('#hist-corpo'); if (!corpo) return;
+      corpo.innerHTML = S.hist.log.length ? '<div class="rolar"><table class="tab"><thead><tr><th>Data</th><th>Usuário</th><th>Ação</th><th>Detalhe</th></tr></thead><tbody>' +
+        S.hist.log.map(l => '<tr><td>' + h(fmtDataHora(l.data)) + '</td><td>' + h(l.usuario) + '</td><td>' + h(l.acao) + '</td><td>' + h(l.detalhe) + '</td></tr>').join('') + '</tbody></table></div>' : '<div class="vazio">Sem registros.</div>';
+    } else {
+      if (!S.hist.excl) S.hist.excl = (await api('getExcluidos')).excluidos;
+      const corpo = $('#hist-corpo'); if (!corpo) return;
+      corpo.innerHTML = S.hist.excl.length ? '<div class="rolar"><table class="tab"><thead><tr><th>Data</th><th>Usuário</th><th>Tipo</th><th>Conteúdo preservado</th></tr></thead><tbody>' +
+        S.hist.excl.map(x => '<tr><td>' + h(fmtDataHora(x.data)) + '</td><td>' + h(x.usuario) + '</td><td>' + h(x.aba) + '</td><td style="max-width:420px;word-break:break-word;font-size:12px">' + h(x.linha_json) + '</td></tr>').join('') + '</tbody></table></div>' : '<div class="vazio">Nada foi excluído.</div>';
+    }
+  } catch (e) { const c = $('#hist-corpo'); if (c) c.innerHTML = '<div class="vazio">' + h(e.message) + '</div>'; }
+}
+
+/* ================================================================== */
+/* PDFs (jsPDF)                                                        */
+/* ================================================================== */
+const COR = { marrom: [67, 51, 30], dourado: [140, 132, 103], oliva: [95, 122, 58], nc: [166, 61, 47], na: [138, 133, 119], claro: [246, 243, 236] };
+function novoPDF() {
+  if (!window.jspdf) throw new Error('A biblioteca de PDF não carregou. Verifique a internet e recarregue a página.');
+  return new window.jspdf.jsPDF({ unit: 'mm', format: 'a4' });
+}
+function pdfCabecalho(doc, titulo, numero) {
+  doc.setFillColor(...COR.marrom); doc.rect(0, 0, 210, 30, 'F');
+  doc.setTextColor(255, 255, 255); doc.setFont('helvetica', 'bold'); doc.setFontSize(15); doc.text(titulo, 14, 14);
+  doc.setFont('helvetica', 'normal'); doc.setFontSize(10); doc.text('Essence Residence · Absoluta Construtora e Incorporadora', 14, 22);
+  if (numero) { doc.setFont('helvetica', 'bold'); doc.setFontSize(14); doc.text(numero, 196, 14, { align: 'right' }); }
+  doc.setDrawColor(...COR.dourado); doc.setLineWidth(0.8); doc.line(0, 30, 210, 30);
+  doc.setTextColor(40, 40, 40);
+}
+function pdfRodape(doc) {
+  const n = doc.getNumberOfPages();
+  for (let p = 1; p <= n; p++) {
+    doc.setPage(p); doc.setFont('helvetica', 'normal'); doc.setFontSize(8); doc.setTextColor(...COR.dourado);
+    doc.text('Absoluta Construtora e Incorporadora · Essence Residence · São Bernardo do Campo/SP', 105, 292, { align: 'center' });
+    doc.text('Página ' + p + ' de ' + n, 196, 292, { align: 'right' });
+  }
+}
+function pdfSecao(doc, texto, y) {
+  doc.setFont('helvetica', 'bold'); doc.setFontSize(9); doc.setTextColor(...COR.dourado); doc.text(texto.toUpperCase(), 14, y);
+  doc.setDrawColor(...COR.dourado); doc.setLineWidth(0.3); doc.line(14, y + 1.5, 196, y + 1.5); doc.setTextColor(40, 40, 40);
+  return y + 7;
+}
+function dimsImg(src) {
+  return new Promise(res => { const i = new Image(); i.onload = () => res({ w: i.naturalWidth || 4, h: i.naturalHeight || 3 }); i.onerror = () => res({ w: 4, h: 3 }); i.src = src; });
+}
+
+async function gerarPDFFVS(id) {
+  try {
+    progresso('Montando PDF…');
+    const j = await api('getFVS', { id: id });
+    const f = j.fvs; const doc = novoPDF();
+    pdfCabecalho(doc, 'FICHA DE VERIFICAÇÃO DE SERVIÇO', f.numero);
+    let y = 40;
+    const info = [['Data', fmtData(f.data)], ['Apartamento / local', f.apartamento], ['Serviço', f.modelo_nome], ['Fornecedor', f.fornecedor_nome || '-'], ['Responsável pela obra', f.responsavel_obra || '-'], ['Situação', f.status]];
+    doc.setFillColor(...COR.claro); doc.rect(14, y - 5, 182, 32, 'F');
+    info.forEach((p, k) => {
+      const x = 18 + (k % 2) * 92; const yy = y + Math.floor(k / 2) * 10;
+      doc.setFont('helvetica', 'bold'); doc.setFontSize(7); doc.setTextColor(...COR.dourado); doc.text(p[0].toUpperCase(), x, yy);
+      doc.setFont('helvetica', 'normal'); doc.setFontSize(10); doc.setTextColor(40, 40, 40); doc.text(doc.splitTextToSize(String(p[1]), 84)[0], x, yy + 4.5);
+    });
+    y += 38;
+    y = pdfSecao(doc, 'Itens verificados', y);
+    const cab = () => {
+      doc.setFillColor(...COR.marrom); doc.rect(14, y - 4, 182, 6.5, 'F'); doc.setTextColor(255, 255, 255); doc.setFont('helvetica', 'bold'); doc.setFontSize(8);
+      doc.text('#', 16, y); doc.text('ITEM / CRITÉRIO', 24, y); doc.text('RESULTADO', 112, y); doc.text('OBSERVAÇÃO', 138, y); doc.setTextColor(40, 40, 40); y += 6;
+    };
+    cab();
+    j.itens.forEach((it, i) => {
+      const t1 = doc.splitTextToSize(it.descricao, 84); const t2 = it.criterio ? doc.splitTextToSize(it.criterio, 84) : [];
+      const to = doc.splitTextToSize(it.observacao || '-', 56);
+      const alt = Math.max(t1.length * 4 + t2.length * 3.4, to.length * 3.8, 5) + 3;
+      if (y + alt > 280) { doc.addPage(); y = 20; cab(); }
+      if (i % 2 === 0) { doc.setFillColor(250, 248, 243); doc.rect(14, y - 4, 182, alt, 'F'); }
+      doc.setFont('helvetica', 'bold'); doc.setFontSize(8.5); doc.text(String(i + 1), 16, y);
+      doc.text(t1, 24, y);
+      if (t2.length) { doc.setFont('helvetica', 'normal'); doc.setFontSize(7.5); doc.setTextColor(...COR.na); doc.text(t2, 24, y + t1.length * 4); doc.setTextColor(40, 40, 40); }
+      const r = { C: ['CONFORME', COR.oliva], NC: ['NÃO CONFORME', COR.nc], NA: ['N.A.', COR.na] }[it.resultado] || ['-', COR.na];
+      doc.setFont('helvetica', 'bold'); doc.setFontSize(8); doc.setTextColor(...r[1]); doc.text(r[0], 112, y); doc.setTextColor(40, 40, 40);
+      doc.setFont('helvetica', 'normal'); doc.setFontSize(8); doc.text(to, 138, y);
+      y += alt;
+    });
+    const pend = j.pendencias.filter(p => p.status !== 'Cancelada');
+    if (pend.length) {
+      y += 4; if (y > 255) { doc.addPage(); y = 20; }
+      y = pdfSecao(doc, 'Pendências geradas', y);
+      pend.forEach(p => {
+        const n = j.itens.findIndex(it => it.id === p.fvs_item_id) + 1;
+        const linhas = doc.splitTextToSize('Item ' + n + ' - ' + p.descricao, 176);
+        const l2 = 'Responsável: ' + p.responsavel + '  ·  Prazo: ' + fmtData(p.prazo) + '  ·  ' + p.status + (p.reinspecoes && p.reinspecoes !== '0' ? '  ·  ' + p.reinspecoes + ' reinspeção(ões)' : '');
+        const l3 = p.reinspecao_obs ? doc.splitTextToSize('Reinspeção: ' + p.reinspecao_obs, 176) : [];
+        const alt = linhas.length * 4 + 4.5 + l3.length * 3.8 + 3;
+        if (y + alt > 280) { doc.addPage(); y = 20; }
+        doc.setFont('helvetica', 'bold'); doc.setFontSize(8.5); doc.text(linhas, 16, y);
+        doc.setFont('helvetica', 'normal'); doc.setFontSize(8); doc.setTextColor(...(p.status === 'Aberta' ? COR.nc : COR.oliva)); doc.text(l2, 16, y + linhas.length * 4);
+        doc.setTextColor(40, 40, 40); if (l3.length) doc.text(l3, 16, y + linhas.length * 4 + 4);
+        y += alt;
+      });
+    }
+    if (f.observacao) {
+      y += 4; const t = doc.splitTextToSize(f.observacao, 180); if (y + t.length * 4 + 10 > 280) { doc.addPage(); y = 20; }
+      y = pdfSecao(doc, 'Observações gerais', y); doc.setFont('helvetica', 'normal'); doc.setFontSize(9); doc.text(t, 14, y); y += t.length * 4 + 2;
+    }
+    // Assinatura
+    const sig = j.fotos.filter(x => x.tipo === 'assinatura')[0];
+    y += 6; if (y > 240) { doc.addPage(); y = 20; }
+    y = pdfSecao(doc, 'Assinatura do responsável', y);
+    if (sig) {
+      try {
+        const u = await fotoDataUrl(sig.id); const d = await dimsImg(u);
+        let w = 70; let hh = w * d.h / d.w; if (hh > 28) { hh = 28; w = hh * d.w / d.h; }
+        doc.setFillColor(255, 255, 255); doc.addImage(u, 'PNG', 14, y, w, hh); y += hh + 1;
+      } catch (e) { y += 8; }
+    } else y += 14;
+    doc.setDrawColor(...COR.na); doc.setLineWidth(0.3); doc.line(14, y, 90, y);
+    doc.setFont('helvetica', 'normal'); doc.setFontSize(9); doc.text((f.assinatura_nome || '') + ' · ' + fmtData(f.data), 14, y + 4.5);
+    // Fotos
+    const fotos = [];
+    j.itens.forEach((it, i) => {
+      j.fotos.filter(x => x.fvs_item_id === it.id && x.tipo !== 'assinatura').forEach(x => fotos.push({ id: x.id, leg: 'Item ' + (i + 1) + (x.tipo === 'reinspecao' ? ' - reinspeção' : '') }));
+    });
+    if (fotos.length) {
+      doc.addPage(); let fy = 20; fy = pdfSecao(doc, 'Registro fotográfico', fy);
+      for (let k = 0; k < fotos.length; k++) {
+        progresso('Montando PDF…', 'Foto ' + (k + 1) + ' de ' + fotos.length);
+        const col = k % 3; if (col === 0 && k > 0) fy += 52;
+        if (fy + 50 > 284) { doc.addPage(); fy = 20; }
+        const x = 14 + col * 62;
+        try {
+          const u = await fotoDataUrl(fotos[k].id); const d = await dimsImg(u);
+          let w = 58; let hh = w * d.h / d.w; if (hh > 44) { hh = 44; w = hh * d.w / d.h; }
+          doc.addImage(u, 'JPEG', x + (58 - w) / 2, fy + (44 - hh) / 2, w, hh);
+        } catch (e) { doc.setFontSize(8); doc.text('(foto indisponível)', x, fy + 20); }
+        doc.setFont('helvetica', 'normal'); doc.setFontSize(8); doc.setTextColor(...COR.dourado); doc.text(fotos[k].leg, x, fy + 48); doc.setTextColor(40, 40, 40);
+      }
+    }
+    pdfRodape(doc);
+    doc.save(nomeArquivoLimpo('FVS_' + f.numero + '_Apto_' + f.apartamento) + '.pdf');
+    progresso(null);
+  } catch (e) { progresso(null); toast(e.message, true); }
+}
+
+function gerarPDFPendencias() {
+  try {
+    const lista = pendFiltradas();
+    if (!lista.length) return toast('Não há pendências nesse filtro.', true);
+    const doc = novoPDF(); const F = S.filtros.pend;
+    pdfCabecalho(doc, 'RELATÓRIO DE PENDÊNCIAS', null);
+    let y = 38;
+    doc.setFont('helvetica', 'normal'); doc.setFontSize(9); doc.setTextColor(...COR.dourado);
+    doc.text('Situação: ' + ({ abertas: 'Abertas', vencidas: 'Vencidas', resolvidas: 'Resolvidas', todas: 'Todas' }[F.status]) + (F.apto ? ' · Apto ' + F.apto : '') + (F.forn ? ' · ' + F.forn : '') + ' · Emitido em ' + fmtData(hoje()) + ' · ' + lista.length + ' pendência(s)', 14, y);
+    doc.setTextColor(40, 40, 40); y += 8;
+    const X = [14, 28, 58, 88, 140, 164, 180]; // apto, serviço, fornecedor, pendência, responsável, prazo, status
+    const cab = () => {
+      doc.setFillColor(...COR.marrom); doc.rect(14, y - 4, 182, 6.5, 'F'); doc.setTextColor(255, 255, 255); doc.setFont('helvetica', 'bold'); doc.setFontSize(7.5);
+      ['APTO', 'SERVIÇO', 'FORNECEDOR', 'PENDÊNCIA', 'RESPONSÁVEL', 'PRAZO', 'STATUS'].forEach((t, i) => doc.text(t, X[i] + 1, y));
+      doc.setTextColor(40, 40, 40); y += 6;
+    };
+    cab();
+    lista.forEach((p, i) => {
+      const cel = [doc.splitTextToSize(String(p.apartamento), 13), doc.splitTextToSize(p.servico, 28), doc.splitTextToSize(p.fornecedor_nome || '-', 28), doc.splitTextToSize(p.descricao, 50), doc.splitTextToSize(p.responsavel, 22), [fmtData(p.prazo)], doc.splitTextToSize(p.status, 15)];
+      const alt = Math.max.apply(null, cel.map(c => c.length)) * 3.7 + 3;
+      if (y + alt > 282) { doc.addPage(); y = 20; cab(); }
+      if (i % 2 === 0) { doc.setFillColor(250, 248, 243); doc.rect(14, y - 4, 182, alt, 'F'); }
+      doc.setFont('helvetica', 'normal'); doc.setFontSize(7.5);
+      cel.forEach((c, k) => {
+        if (k === 5 && vencida(p)) { doc.setTextColor(...COR.nc); doc.setFont('helvetica', 'bold'); }
+        if (k === 6) { doc.setTextColor(...(p.status === 'Aberta' ? COR.nc : COR.oliva)); doc.setFont('helvetica', 'bold'); }
+        doc.text(c, X[k] + 1, y);
+        doc.setTextColor(40, 40, 40); doc.setFont('helvetica', 'normal');
+      });
+      y += alt;
+    });
+    pdfRodape(doc);
+    doc.save(nomeArquivoLimpo('Pendencias_FVS_' + hoje()) + '.pdf');
+  } catch (e) { toast(e.message, true); }
+}
+
+/* ================================================================== */
+/* Início                                                              */
+/* ================================================================== */
+(function boot() {
+  const salvo = ls.get('fvs_sessao');
+  if (salvo) {
+    try {
+      const s = JSON.parse(salvo);
+      if (s && s.token) { S.token = s.token; S.usuario = s.usuario; S.admin = !!s.admin; iniciar(); return; }
+    } catch (e) { ls.del('fvs_sessao'); }
+  }
+  $('#login').hidden = false;
+})();
+</script>
+</body>
+</html>
