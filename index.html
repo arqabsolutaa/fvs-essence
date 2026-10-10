@@ -125,6 +125,11 @@ main{max-width:1100px;margin:0 auto;padding:16px}
 .barra label{display:block;font-size:11px;font-weight:700;color:var(--suave);text-transform:uppercase;letter-spacing:.06em;margin-bottom:3px}
 .titulo-sec{display:flex;align-items:center;justify-content:space-between;gap:10px;margin:4px 0 12px}
 .titulo-sec h2{font-size:20px;color:var(--marrom)}
+.pn-row{display:grid;grid-template-columns:minmax(90px,170px) 1fr 48px;gap:10px;align-items:center;margin:8px 0;font-size:14px}.pn-row b{text-align:right}
+.pn-bar{height:12px;background:#e3e3e0;border-radius:7px;overflow:hidden}.pn-bar i{display:block;height:100%;background:var(--marrom);border-radius:7px}
+.pn-col{display:flex;gap:8px;align-items:flex-end;height:130px}.pn-col>div{flex:1;display:flex;flex-direction:column;align-items:center;justify-content:flex-end;gap:3px;font-size:11px;color:var(--suave)}.pn-col i{display:block;width:100%;background:var(--marrom);border-radius:4px 4px 0 0;min-height:2px}.pn-v{font-size:12px;color:var(--texto)}
+.pn-sv{background:#fff;border:1px solid var(--linha);border-radius:var(--raio);padding:10px 12px;margin-bottom:8px}.pn-sv summary{cursor:pointer;display:flex;gap:8px;align-items:baseline;flex-wrap:wrap}.pn-n{margin-left:auto;font-weight:700}.pn-n.zero{color:#a63d2f}.pn-falta{margin-top:8px;font-size:13px;color:var(--suave);line-height:1.5}
+.pn-venc{background:#fff;border:1px solid var(--linha);border-left:4px solid #a63d2f;border-radius:var(--raio);padding:10px 12px;margin-bottom:8px;font-size:14px}
 .kpis{display:grid;grid-template-columns:repeat(auto-fit,minmax(130px,1fr));gap:10px;margin-bottom:14px}
 .kpi{background:#fff;border:1px solid var(--linha);border-radius:var(--raio);padding:12px 14px}
 .kpi b{display:block;font-size:24px;color:var(--marrom)}
@@ -286,6 +291,7 @@ const S = {
   filtros: {
     fvs: { status: '', apto: '', modelo: '', forn: '', q: '', onde: '' },
     pend: { status: 'abertas', apto: '', forn: '', onde: '' },
+    painel: { disc: '', enc: '', mod: '' },
     reg: { apto: '', disc: '', ponto: '' },
     obs: { disc: '', status: '' },
     cob: { disc: '' }
@@ -516,7 +522,7 @@ function sair(expirou) {
   else {
     // Saída voluntária: limpa os dados guardados no aparelho. A fila de envio é mantida.
     if (S.usuario) ls.del('fvs_cache_' + S.usuario);
-    $('#app').hidden = true; S.usuario = null; S.admin = false; S.perfil = null; S.and = null; S.d = DADOS_VAZIOS();
+    $('#app').hidden = true; S.abaInit = false; S.usuario = null; S.admin = false; S.perfil = null; S.and = null; S.d = DADOS_VAZIOS();
   }
 }
 
@@ -537,6 +543,7 @@ async function carregar() {
   try {
     const j = await api('bootstrap');
     S.perfil = j.perfil; S.admin = j.admin; S.restricao = j.restricao || [];
+    if (!S.abaInit) { S.abaInit = true; if (S.perfil !== 'encarregado') S.aba = 'painel'; }
     S.d = Object.assign(DADOS_VAZIOS(), {
       modelos: j.modelos, itens: j.itens, fornecedores: j.fornecedores, apartamentos: j.apartamentos, fvs: j.fvs, pendencias: j.pendencias,
       disciplinas: j.disciplinas, pontos: j.pontos, usuarios: j.usuarios
@@ -567,7 +574,8 @@ async function tentarReconectar() {
 /* ================================================================== */
 function abasDoPerfil() {
   const base = [['fvs', 'Checklists'], ['pend', 'Pendências'], ['and', 'Fotos'], ['obs', 'Observações gerais']];
-  if (S.admin) return base.concat([['modelos', 'Modelos'], ['bib', 'Biblioteca'], ['cad', 'Cadastros'], ['hist', 'Histórico']]);
+  if (S.admin) return [['painel', 'Painel']].concat(base).concat([['modelos', 'Modelos'], ['bib', 'Biblioteca'], ['cad', 'Cadastros'], ['hist', 'Histórico']]);
+  if (S.perfil === 'consulta') return [['painel', 'Painel']].concat(base);
   return base;
 }
 function render() {
@@ -583,6 +591,7 @@ function render() {
   renderFaixa();
   const v = $('#view');
   if (S.aba === 'fvs') v.innerHTML = viewFVS();
+  else if (S.aba === 'painel') v.innerHTML = viewPainel();
   else if (S.aba === 'pend') v.innerHTML = viewPend();
   else if (S.aba === 'and') v.innerHTML = viewAndamento();
   else if (S.aba === 'obs') { v.innerHTML = viewObs(); if (!S.obs) carregarObs(); }
@@ -1558,6 +1567,7 @@ async function carregarAndamento() {
   catch (e) { toast(e.message, true); S.and = S.and || { registros: [], fotos: [] }; }
   finally { S.andCarregando = false; }
   if (S.aba === 'and') { if (S.sub === 'registrar') atualizarHintRev(); else render(); }
+  else if (S.aba === 'painel') render();
 }
 
 function chaveRev(r) { return [r.apartamento, r.ponto_id || ('o:' + String(r.ponto_nome || '').trim().toLowerCase()), String(r.ambiente || '').trim().toLowerCase()].join('|'); }
@@ -1713,6 +1723,120 @@ function viewCobertura() {
     '<div class="kpis"><div class="kpi"><b>' + pct + '%</b><span>Pontos registrados</span></div><div class="kpi"><b>' + feitos + ' / ' + total + '</b><span>Apto × ponto</span></div></div>' +
     (pontos.length && aptos.length ? '<div class="rolar"><table class="tab cob"><thead><tr><th>Apto</th>' + pontos.map(p => '<th title="' + h(p.nome) + '">' + h(p.nome) + '</th>').join('') + '<th>Total</th></tr></thead><tbody>' + linhas + '</tbody></table></div>' +
       '' : '<div class="vazio">Sem pontos ou apartamentos cadastrados.</div>');
+}
+
+/* ================================================================== */
+/* Painel de acompanhamento (admin e consulta)                         */
+/* ================================================================== */
+function calcPainel() {
+  const F = S.filtros.painel;
+  const aptos = S.d.apartamentos.filter(ativo);
+  const unidades = aptos.filter(a => a.tipo !== 'Área comum').map(a => a.codigo);
+  const feitoPor = {};
+  S.d.fvs.forEach(f => { (feitoPor[f.modelo_id] = feitoPor[f.modelo_id] || {})[f.apartamento] = 1; });
+  const linhas = [];
+  S.d.modelos.filter(m => ativo(m) && m.disciplina_id).forEach(m => {
+    const encs = m.encarregado ? [m.encarregado] : encarregadosDe(m.disciplina_id);
+    if (F.disc && m.disciplina_id !== F.disc) return;
+    if (F.enc && encs.indexOf(F.enc) < 0) return;
+    if (F.mod && (m.modulo || '') !== F.mod) return;
+    const fe = feitoPor[m.id] || {};
+    let esperado, feitos, faltam;
+    if (m.escopo === 'Torre') { esperado = 1; feitos = Object.keys(fe).length ? 1 : 0; faltam = feitos ? [] : ['Torre']; }
+    else { esperado = unidades.length; faltam = unidades.filter(c => !fe[c]); feitos = esperado - faltam.length; }
+    linhas.push({ m: m, disc: m.disciplina_id, encs: encs, modulo: m.modulo || '', esperado: esperado, feitos: feitos, faltam: faltam });
+  });
+  return linhas;
+}
+function pnBarra(feito, total, vermelho) {
+  const p = total ? Math.round(feito * 100 / total) : 0;
+  return '<div class="pn-bar"><i style="width:' + p + '%' + (vermelho ? ';background:var(--nc,#a63d2f)' : '') + '"></i></div>';
+}
+function pnGrupo(titulo, linhas) {
+  const e = linhas.reduce((s, x) => s + x.esperado, 0), f = linhas.reduce((s, x) => s + x.feitos, 0);
+  return '<div class="pn-row"><span>' + h(titulo) + '</span>' + pnBarra(f, e) + '<b>' + (e ? Math.round(f * 100 / e) : 0) + '%</b></div>';
+}
+function semanasFVS() {
+  const out = []; const base = new Date(); base.setHours(12, 0, 0, 0);
+  const dow = (base.getDay() + 6) % 7; base.setDate(base.getDate() - dow);
+  for (let i = 7; i >= 0; i--) { const d = new Date(base); d.setDate(d.getDate() - i * 7); out.push({ ini: d.getFullYear() + '-' + pad(d.getMonth() + 1) + '-' + pad(d.getDate()), rot: pad(d.getDate()) + '/' + pad(d.getMonth() + 1), n: 0 }); }
+  S.d.fvs.forEach(f => { for (let i = out.length - 1; i >= 0; i--) { if (f.data >= out[i].ini) { out[i].n++; break; } } });
+  return out;
+}
+function viewPainel() {
+  const F = S.filtros.painel;
+  if (!S.and) carregarAndamento();
+  const discs = S.d.disciplinas.filter(ativo).sort((a, b) => nat(a.nome, b.nome));
+  const encs = unicos(S.d.usuarios.filter(u => ativo(u) && u.perfil !== 'consulta' && u.perfil !== 'completo').map(u => u.nome)).sort(nat);
+  const mods = unicos(S.d.modelos.map(m => m.modulo)).sort(nat);
+  const linhas = calcPainel();
+  const E = linhas.reduce((s, x) => s + x.esperado, 0), Fe = linhas.reduce((s, x) => s + x.feitos, 0);
+  const abertas = S.d.pendencias.filter(p => p.status === 'Aberta'), venc = abertas.filter(vencida);
+  const nSem = linhas.filter(x => x.feitos === 0).length;
+  const porDisc = discs.map(d => [d.nome, linhas.filter(x => x.disc === d.id)]).filter(x => x[1].length);
+  const encsLista = unicos([].concat.apply([], linhas.map(x => x.encs))).sort(nat);
+  const porEnc = encsLista.map(n => [n, linhas.filter(x => x.encs.indexOf(n) >= 0)]);
+  const sem = semanasFVS(); const mx = Math.max.apply(null, sem.map(s => s.n).concat([1]));
+  let fotos = '';
+  if (S.and) {
+    const ptsPorDisc = {}; S.d.pontos.forEach(p => { (ptsPorDisc[p.disciplina_id] = ptsPorDisc[p.disciplina_id] || []).push(p.id); });
+    const feitosK = {}; S.and.registros.forEach(r => { if (r.ponto_id) feitosK[r.disciplina_id + '|' + r.apartamento + '|' + r.ponto_id] = 1; });
+    const ap = S.d.apartamentos.filter(ativo).map(a => a.codigo);
+    fotos = discs.filter(d => (ptsPorDisc[d.id] || []).length && (!F.disc || F.disc === d.id)).map(d => {
+      const tot = ap.length * ptsPorDisc[d.id].length; let ok = 0;
+      ap.forEach(c => ptsPorDisc[d.id].forEach(pid => { if (feitosK[d.id + '|' + c + '|' + pid]) ok++; }));
+      return '<div class="pn-row"><span>' + h(d.nome) + '</span>' + pnBarra(ok, tot) + '<b>' + (tot ? Math.round(ok * 100 / tot) : 0) + '%</b></div>';
+    }).join('') || '<div class="sub">Nenhum ponto de foto cadastrado.</div>';
+  } else fotos = '<div class="sub">Carregando…</div>';
+  const faltando = linhas.filter(x => x.faltam.length).sort((a, b) => nat(nomeDiscId(a.disc) + a.modulo + a.m.nome, nomeDiscId(b.disc) + b.modulo + b.m.nome));
+  const lista = faltando.map(x => '<details class="pn-sv"><summary><b>' + h(x.m.nome) + '</b> <span class="sub">' + h(nomeDiscId(x.disc)) + (x.modulo ? ' · ' + h(x.modulo) : '') + ' · ' + h(x.encs.join(', ') || 'sem encarregado') + '</span><span class="pn-n ' + (x.feitos === 0 ? 'zero' : '') + '">' + x.feitos + '/' + x.esperado + '</span></summary>' +
+    '<div class="pn-falta">Faltam: ' + x.faltam.slice(0, 40).map(c => h(c)).join(', ') + (x.faltam.length > 40 ? ' e mais ' + (x.faltam.length - 40) : '') + '</div></details>').join('');
+  const vencLista = venc.sort((a, b) => String(a.prazo).localeCompare(String(b.prazo))).slice(0, 15).map(p => '<div class="pn-venc"><b>' + h(p.apartamento) + '</b> ' + h(p.servico) + ' · ' + h(p.descricao) + '<div class="sub">' + h(p.responsavel || '-') + ' · prazo ' + fmtData(p.prazo) + '</div></div>').join('');
+  return '<div class="titulo-sec"><h2>Painel</h2><div class="acoes"><button class="btn sec sm" type="button" onclick="atualizar()">Atualizar</button><button class="btn sm" type="button" onclick="gerarPDFPainel()">PDF da reunião</button></div></div>' +
+    '<div class="barra"><div class="campo"><label>Disciplina</label><select onchange="S.filtros.painel.disc=this.value;render()">' + opcoes(discs.map(d => [d.id, d.nome]), F.disc, 'Todas') + '</select></div>' +
+    '<div class="campo"><label>Encarregado</label><select onchange="S.filtros.painel.enc=this.value;render()">' + opcoes(encs, F.enc, 'Todos') + '</select></div>' +
+    '<div class="campo"><label>Módulo</label><select onchange="S.filtros.painel.mod=this.value;render()">' + opcoes(mods, F.mod, 'Todos') + '</select></div></div>' +
+    '<div class="kpis"><div class="kpi"><b>' + (E ? Math.round(Fe * 100 / E) : 0) + '%</b><span>Checklists feitos</span></div><div class="kpi"><b>' + Fe + ' / ' + E + '</b><span>Feitos / previstos</span></div>' +
+    '<div class="kpi"><b>' + nSem + '</b><span>Serviços sem nenhum checklist</span></div><div class="kpi"><b>' + abertas.length + '</b><span>Pendências abertas</span></div><div class="kpi"><b style="color:var(--nc,#a63d2f)">' + venc.length + '</b><span>Vencidas</span></div></div>' +
+    '<div class="card"><div class="sec-t">Por disciplina</div>' + (porDisc.map(x => pnGrupo(x[0], x[1])).join('') || '<div class="sub">Sem checklists cadastrados.</div>') + '</div>' +
+    '<div class="card"><div class="sec-t">Por encarregado</div>' + (porEnc.map(x => pnGrupo(x[0], x[1])).join('') || '<div class="sub">Sem encarregados.</div>') + '</div>' +
+    '<div class="card"><div class="sec-t">Checklists por semana</div><div class="pn-col">' + sem.map(s => '<div><span class="pn-v">' + s.n + '</span><i style="height:' + Math.round(s.n * 80 / mx) + 'px"></i><span>' + s.rot + '</span></div>').join('') + '</div></div>' +
+    '<div class="card"><div class="sec-t">Fotos de andamento (pontos registrados)</div>' + fotos + '</div>' +
+    '<div class="sec-t">O que ainda falta (' + faltando.length + ' serviços)</div>' + (lista || '<div class="vazio">Nada pendente neste filtro.</div>') +
+    (venc.length ? '<div class="sec-t">Pendências vencidas</div>' + vencLista : '');
+}
+function gerarPDFPainel() {
+  try {
+    const linhas = calcPainel().filter(x => x.faltam.length);
+    const venc = S.d.pendencias.filter(vencida);
+    const doc = novoPDF(); pdfCabecalho(doc, 'REUNIÃO DE ACOMPANHAMENTO', null);
+    let y = 40;
+    doc.setFont('helvetica', 'normal'); doc.setFontSize(9); doc.setTextColor(...COR.dourado); doc.text('Emitido em ' + fmtData(hoje()), 14, y - 4); doc.setTextColor(40, 40, 40);
+    const nova = n => { if (y + n > 282) { doc.addPage(); y = 20; } };
+    const encs = unicos([].concat.apply([], linhas.map(x => x.encs.length ? x.encs : ['Sem encarregado']))).sort(nat);
+    encs.forEach(n => {
+      const sv = linhas.filter(x => (x.encs.length ? x.encs : ['Sem encarregado']).indexOf(n) >= 0);
+      nova(20); y += 4; pdfSecao(doc, n + ' — ' + sv.length + ' serviço(s) em aberto', y); y += 7;
+      sv.forEach(x => {
+        const t = x.m.nome + ' (' + nomeDiscId(x.disc) + (x.modulo ? ' · ' + x.modulo : '') + ') — ' + x.feitos + '/' + x.esperado;
+        const f = 'Faltam: ' + x.faltam.slice(0, 30).join(', ') + (x.faltam.length > 30 ? ' e mais ' + (x.faltam.length - 30) : '');
+        const l1 = doc.splitTextToSize(t, 180), l2 = doc.splitTextToSize(f, 176);
+        nova((l1.length + l2.length) * 4 + 3);
+        doc.setFont('helvetica', 'bold'); doc.setFontSize(9); doc.text(l1, 14, y); y += l1.length * 4;
+        doc.setFont('helvetica', 'normal'); doc.setFontSize(8); doc.setTextColor(...COR.dourado); doc.text(l2, 18, y); doc.setTextColor(40, 40, 40); y += l2.length * 3.6 + 2.5;
+      });
+    });
+    if (venc.length) {
+      nova(20); y += 4; pdfSecao(doc, 'Pendências vencidas (' + venc.length + ')', y); y += 7;
+      venc.forEach(p => {
+        const l = doc.splitTextToSize('Apto ' + p.apartamento + ' · ' + p.servico + ' · ' + p.descricao + ' · ' + (p.responsavel || '-') + ' · prazo ' + fmtData(p.prazo), 180);
+        nova(l.length * 4 + 2); doc.setFont('helvetica', 'normal'); doc.setFontSize(8.5); doc.text(l, 14, y); y += l.length * 4 + 2;
+      });
+    }
+    if (!linhas.length && !venc.length) { doc.setFontSize(11); doc.text('Nada pendente. Todos os checklists previstos foram feitos.', 14, y + 6); }
+    pdfRodape(doc);
+    doc.save('Reuniao de acompanhamento - ' + hoje().split('-').reverse().join('-') + '.pdf');
+  } catch (e) { toast(e.message, true); }
 }
 
 /* ---- Cadastros: disciplinas, pontos e usuários ---- */
