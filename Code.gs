@@ -14,9 +14,9 @@
  * Cadastros → Usuários; só registram e veem as próprias fotos de andamento).
  */
 
-const VERSAO = '1.3.0';
+const VERSAO = '1.3.1';
 /** Enquanto true, usuário que AINDA NÃO tem senha definida entra sem senha. Quem já tem senha continua exigindo. */
-const PERMITIR_SEM_SENHA = true;
+const PERMITIR_SEM_SENHA = false;
 const TZ = 'America/Sao_Paulo';
 const USUARIOS = ['Bárbara', 'Gabriel']; // usuários fixos; encarregados ficam na aba Usuarios
 const ADMIN = 'Bárbara';
