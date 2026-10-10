@@ -14,7 +14,7 @@
  * Cadastros → Usuários; só registram e veem as próprias fotos de andamento).
  */
 
-const VERSAO = '1.9.0';
+const VERSAO = '1.11.0';
 /** Enquanto true, usuário que AINDA NÃO tem senha definida entra sem senha. Quem já tem senha continua exigindo. */
 const PERMITIR_SEM_SENHA = false;
 const TZ = 'America/Sao_Paulo';
@@ -32,7 +32,7 @@ const ABAS = {
   Fornecedores: ['id', 'nome', 'servicos', 'contato', 'ativo'],
   Apartamentos: ['id', 'codigo', 'tipo', 'ativo'],
   FVS: ['id', 'numero', 'data', 'apartamento', 'modelo_id', 'modelo_nome', 'fornecedor_id', 'fornecedor_nome',
-        'responsavel_obra', 'status', 'observacao', 'assinatura_nome', 'criado_por', 'criado_em', 'atualizado_em', 'disciplina_id'],
+        'responsavel_obra', 'status', 'observacao', 'assinatura_nome', 'criado_por', 'criado_em', 'atualizado_em', 'disciplina_id', 'ativo'],
   FVS_Itens: ['id', 'fvs_id', 'item_id', 'ordem', 'descricao', 'criterio', 'resultado', 'observacao'],
   Pendencias: ['id', 'fvs_id', 'fvs_item_id', 'apartamento', 'servico', 'fornecedor_nome', 'descricao', 'responsavel',
                'prazo', 'status', 'reinspecoes', 'reinspecao_data', 'reinspecao_obs', 'criado_em', 'resolvido_em', 'resolvido_por'],
@@ -562,7 +562,7 @@ function salvarModelo_(req, u) {
 
 function alterarAtivo_(req, u) {
   const aba = String(req.aba || '');
-  if (['Modelos', 'Fornecedores', 'Apartamentos', 'Disciplinas', 'Usuarios'].indexOf(aba) < 0) throw new Error('Aba inválida.');
+  if (['Modelos', 'Fornecedores', 'Apartamentos', 'Disciplinas', 'Usuarios', 'FVS'].indexOf(aba) < 0) throw new Error('Aba inválida.');
   if (aba === 'Usuarios') exigirAdmin_(u);
   const ativo = req.ativo ? 'sim' : 'nao';
   atualizar_(aba, String(req.id || ''), { ativo: ativo });
@@ -838,6 +838,20 @@ function removerLinhas_(nome, coluna, valor, u) {
     .forEach(function (n) { aba_(nome).deleteRow(n); });
 }
 
+function excluirModelo_(req, u) {
+  exigirAdmin_(u);
+  const id = String(req.id || '');
+  const m = lerAba_('Modelos').filter(function (x) { return x.id === id; })[0];
+  if (!m) throw new Error('Modelo não encontrado.');
+  const usos = lerAba_('FVS').filter(function (f) { return f.modelo_id === id; }).length;
+  if (usos) throw new Error('Este modelo tem ' + usos + ' checklist(s) feito(s). Arquive o modelo em vez de excluir.');
+  backupAntes_();
+  removerLinhas_('ModeloItens', 'modelo_id', id, u);
+  removerLinhas_('Modelos', 'id', id, u);
+  registrarLog_(u, 'modelo_excluido', id, m.nome);
+  return { ok: true };
+}
+
 function excluirFVS_(req, u) {
   exigirAdmin_(u);
   const id = String(req.id || '');
@@ -1103,6 +1117,7 @@ const ACOES = {
   adicionarServicos: [adicionarServicos_, 'A', false],
   excluirFoto: [excluirFoto_, 'A', false],
   excluirFVS: [excluirFVS_, 'A', false],
+  excluirModelo: [excluirModelo_, 'A', false],
   excluirRegistro: [excluirRegistro_, 'A', false],
   excluirObservacao: [excluirObservacao_, 'A', false],
   resolverObservacao: [resolverObservacao_, 'A', false],
