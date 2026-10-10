@@ -14,7 +14,7 @@
  * Cadastros → Usuários; só registram e veem as próprias fotos de andamento).
  */
 
-const VERSAO = '1.7.0';
+const VERSAO = '1.8.0';
 /** Enquanto true, usuário que AINDA NÃO tem senha definida entra sem senha. Quem já tem senha continua exigindo. */
 const PERMITIR_SEM_SENHA = false;
 const TZ = 'America/Sao_Paulo';
@@ -275,7 +275,7 @@ function infoUsuario_(nome) {
   if (USUARIOS.indexOf(nome) >= 0) return { nome: nome, perfil: 'consulta', disciplinas: [] };
   const r = lerAba_('Usuarios').filter(function (x) { return x.nome === nome && x.ativo !== 'nao'; })[0];
   if (!r) return null;
-  if (r.perfil === 'completo' || r.perfil === 'consulta') return { nome: nome, perfil: 'consulta', disciplinas: [] };
+  if (r.perfil === 'completo' || r.perfil === 'consulta') return { nome: nome, perfil: 'consulta', disciplinas: String(r.disciplinas || '').split(',').filter(Boolean) }; // lê tudo; escreve só nas disciplinas listadas
   return { nome: nome, perfil: 'encarregado', disciplinas: String(r.disciplinas || '').split(',').filter(Boolean) };
 }
 
@@ -286,7 +286,10 @@ function listarUsuarios_() {
   const lista = USUARIOS.map(function (n) { return { nome: n, competencias: ['Administração'] }; });
   lerAba_('Usuarios').forEach(function (x) {
     if (x.ativo === 'nao' || !x.nome) return;
-    if (x.perfil === 'completo' || x.perfil === 'consulta') { lista.push({ nome: x.nome, competencias: ['Administração'] }); return; }
+    if (x.perfil === 'completo' || x.perfil === 'consulta') {
+      const extra = String(x.disciplinas || '').split(',').filter(function (id) { return nomeDisc[id]; }).map(function (id) { return nomeDisc[id]; });
+      lista.push({ nome: x.nome, competencias: ['Administração'].concat(extra) }); return;
+    }
     const comp = String(x.disciplinas || '').split(',').filter(function (id) { return nomeDisc[id]; }).map(function (id) { return nomeDisc[id]; });
     if (comp.length) lista.push({ nome: x.nome, competencias: comp });
   });
@@ -367,7 +370,7 @@ function setup() {
 /** Garante as disciplinas básicas (sem pontos): a Bárbara edita a lista depois em Cadastros → Disciplinas. */
 function garantirCompetencias_() {
   const nomes = lerAba_('Disciplinas').map(function (d) { return String(d.nome).toLowerCase(); });
-  ['Hidráulica', 'Elétrica', 'Civil', 'Estrutura'].forEach(function (n) {
+  ['Hidráulica', 'Elétrica', 'Civil', 'Estrutura', 'Revestimentos', 'Marmoraria', 'Personalize'].forEach(function (n) {
     if (nomes.indexOf(n.toLowerCase()) < 0) inserir_('Disciplinas', { id: novoId_(), nome: n, ativo: 'sim' });
   });
 }
@@ -502,6 +505,9 @@ function bootstrap_(req, u, info) {
 function podeFVS_(f, info) {
   return info.perfil !== 'encarregado' || info.disciplinas.indexOf(f.disciplina_id) >= 0;
 }
+/** Quem não é admin só escreve nas disciplinas liberadas para ele. */
+function restritoEscrita_(info) { return info.perfil !== 'admin'; }
+function podeFVSEscrita_(f, info) { return !restritoEscrita_(info) || info.disciplinas.indexOf(f.disciplina_id) >= 0; }
 
 function getFVS_(req, u, info) {
   const id = String(req.id || '');
@@ -590,11 +596,20 @@ function salvarApartamentos_(req, u) {
   return { ok: true, criados: criados };
 }
 
-function proximoNumero_() {
+const SIGLAS = { hidraulica: 'HID', eletrica: 'ELE', civil: 'CIV', revestimentos: 'REV', marmoraria: 'MAR', estrutura: 'EST', personalize: 'PER', 'ar-condicionado': 'ARC', 'ar condicionado': 'ARC' };
+/** Sigla de 3 letras da disciplina (usada no número da FVS e no nome do PDF). */
+function siglaDisc_(nome) {
+  const n = String(nome || '').normalize('NFD').replace(/[\u0300-\u036f]/g, '').toLowerCase().trim();
+  if (SIGLAS[n]) return SIGLAS[n];
+  return n.replace(/[^a-z]/g, '').slice(0, 3).toUpperCase();
+}
+/** Numeração por disciplina: FVS-HID-0001, FVS-ELE-0001… Sem disciplina: FVS-0001. */
+function proximoNumero_(sigla) {
   const p = props_();
-  const n = Number(p.getProperty('SEQ_FVS') || 0) + 1;
-  p.setProperty('SEQ_FVS', String(n));
-  return 'FVS-' + ('0000' + n).slice(-4);
+  const chave = sigla ? 'SEQ_' + sigla : 'SEQ_FVS';
+  const n = Number(p.getProperty(chave) || 0) + 1;
+  p.setProperty(chave, String(n));
+  return 'FVS-' + (sigla ? sigla + '-' : '') + ('0000' + n).slice(-4);
 }
 
 function recalcStatus_(fvsId) {
@@ -617,7 +632,7 @@ function salvarFVS_(req, u, info) {
   const nomeServico = texto_(f.modelo_nome, 120);
   const modelo = f.modelo_id ? lerAba_('Modelos').filter(function (x) { return x.id === f.modelo_id; })[0] : null;
   const discFVS = modelo ? String(modelo.disciplina_id || '') : '';
-  if (info.perfil === 'encarregado') {
+  if (restritoEscrita_(info)) {
     if (info.disciplinas.indexOf(discFVS) < 0 || (modelo && modelo.encarregado && modelo.encarregado !== u)) throw new Error('Você não tem acesso a este checklist.');
     const ja = lerAba_('FVS').filter(function (x) { return x.id === f.id; })[0];
     if (ja && info.disciplinas.indexOf(ja.disciplina_id) < 0) throw new Error('Acesso restrito.');
@@ -645,7 +660,7 @@ function salvarFVS_(req, u, info) {
   if (existente) {
     atualizar_('FVS', f.id, cab);
   } else {
-    inserir_('FVS', Object.assign({ id: f.id, numero: proximoNumero_(), status: 'Aprovada', criado_por: u, criado_em: agora }, cab));
+    inserir_('FVS', Object.assign({ id: f.id, numero: proximoNumero_(discFVS ? siglaDisc_((lerAba_('Disciplinas').filter(function (d) { return d.id === discFVS; })[0] || {}).nome) : ''), status: 'Aprovada', criado_por: u, criado_em: agora }, cab));
   }
 
   // Itens: substitui os da FVS
@@ -693,9 +708,9 @@ function reinspecionar_(req, u, info) {
   const p = lerAba_('Pendencias').filter(function (x) { return x.id === id; })[0];
   if (!p) throw new Error('Pendência não encontrada.');
   if (p.status !== 'Aberta') throw new Error('Esta pendência não está aberta.');
-  if (info.perfil === 'encarregado') {
+  if (restritoEscrita_(info)) {
     const fv = lerAba_('FVS').filter(function (x) { return x.id === p.fvs_id; })[0];
-    if (!fv || !podeFVS_(fv, info)) throw new Error('Acesso restrito.');
+    if (!fv || !podeFVSEscrita_(fv, info)) throw new Error('Acesso restrito.');
   }
   const agora = agora_();
   const obs = texto_(req.obs, 1000);
@@ -731,21 +746,21 @@ function uploadFoto_(req, u, info) {
     registroId = String(req.registro_id || '');
     const reg = lerAba_('Registros').filter(function (x) { return x.id === registroId; })[0];
     if (!reg) throw new Error('Registro não encontrado para a foto.');
-    if (info.perfil === 'encarregado' && info.disciplinas.indexOf(reg.disciplina_id) < 0) throw new Error('Acesso restrito.');
+    if (restritoEscrita_(info) && info.disciplinas.indexOf(reg.disciplina_id) < 0) throw new Error('Acesso restrito.');
     const qtd = lerAba_('Fotos').filter(function (x) { return x.registro_id === registroId; }).length;
     if (qtd >= MAX_FOTOS_REGISTRO) throw new Error('Limite de ' + MAX_FOTOS_REGISTRO + ' fotos por registro.');
   } else if (req.tipo === 'observacao') {
     obsId = String(req.observacao_id || '');
     const ob = lerAba_('ObservacoesGerais').filter(function (x) { return x.id === obsId; })[0];
     if (!ob) throw new Error('Observação não encontrada para a foto.');
-    if (info.perfil === 'encarregado' && info.disciplinas.indexOf(ob.disciplina_id) < 0) throw new Error('Acesso restrito.');
+    if (restritoEscrita_(info) && info.disciplinas.indexOf(ob.disciplina_id) < 0) throw new Error('Acesso restrito.');
     const qo = lerAba_('Fotos').filter(function (x) { return x.observacao_id === obsId; }).length;
     if (qo >= MAX_FOTOS_REGISTRO) throw new Error('Limite de ' + MAX_FOTOS_REGISTRO + ' fotos por observação.');
   } else {
     fvsId = String(req.fvs_id || '');
     const fv = lerAba_('FVS').filter(function (x) { return x.id === fvsId; })[0];
     if (!fv) throw new Error('FVS não encontrada para a foto.');
-    if (!podeFVS_(fv, info)) throw new Error('Acesso restrito.');
+    if (!podeFVSEscrita_(fv, info)) throw new Error('Acesso restrito.');
   }
   const m = /^data:(image\/(?:jpeg|png));base64,([A-Za-z0-9+\/=]+)$/.exec(String(req.dataUrl || ''));
   if (!m) throw new Error('Imagem inválida.');
@@ -865,14 +880,14 @@ function salvarRegistro_(req, u, info) {
   if (!idValido_(r.id)) throw new Error('Identificador do registro inválido.');
   const existente = lerAba_('Registros').filter(function (x) { return x.id === r.id; })[0];
   if (existente) { // reenvio da fila: não duplica
-    if (info.perfil === 'encarregado' && info.disciplinas.indexOf(existente.disciplina_id) < 0) throw new Error('Acesso restrito.');
+    if (restritoEscrita_(info) && info.disciplinas.indexOf(existente.disciplina_id) < 0) throw new Error('Acesso restrito.');
     return { ok: true, id: r.id, repetido: true };
   }
   const apto = texto_(r.apartamento, 60).trim();
   if (!apto) throw new Error('Informe o apartamento.');
   const disc = lerAba_('Disciplinas').filter(function (x) { return x.id === r.disciplina_id; })[0];
   if (!disc) throw new Error('Disciplina não encontrada.');
-  if (info.perfil === 'encarregado' && info.disciplinas.indexOf(disc.id) < 0) {
+  if (restritoEscrita_(info) && info.disciplinas.indexOf(disc.id) < 0) {
     throw new Error('Você não tem acesso a esta disciplina.');
   }
   let pontoId = ''; let pontoNome = '';
@@ -935,7 +950,7 @@ function salvarUsuario_(req, u) {
   }
   const pedido = existente ? existente.perfil : d.perfil;
   const perfil = (pedido === 'completo' || pedido === 'consulta' || d.perfil === 'consulta') ? 'consulta' : 'encarregado';
-  const disciplinas = perfil === 'consulta' ? [] : (d.disciplinas || []).map(String).filter(idValido_);
+  const disciplinas = (d.disciplinas || []).map(String).filter(idValido_);
   const senha = String(d.senha || '');
   if (!existente && !senha && !PERMITIR_SEM_SENHA) throw new Error('Informe a senha (4 a 8 números).');
   if (senha) validarPin_(senha);
@@ -961,12 +976,12 @@ function salvarObservacao_(req, u, info) {
   if (!idValido_(o.id)) throw new Error('Identificador da observação inválido.');
   const existente = lerAba_('ObservacoesGerais').filter(function (x) { return x.id === o.id; })[0];
   if (existente) { // reenvio da fila: não duplica
-    if (info.perfil === 'encarregado' && info.disciplinas.indexOf(existente.disciplina_id) < 0) throw new Error('Acesso restrito.');
+    if (restritoEscrita_(info) && info.disciplinas.indexOf(existente.disciplina_id) < 0) throw new Error('Acesso restrito.');
     return { ok: true, id: o.id, repetido: true };
   }
   const disc = lerAba_('Disciplinas').filter(function (x) { return x.id === o.disciplina_id; })[0];
   if (!disc) throw new Error('Disciplina não encontrada.');
-  if (info.perfil === 'encarregado' && info.disciplinas.indexOf(disc.id) < 0) throw new Error('Você não tem acesso a esta disciplina.');
+  if (restritoEscrita_(info) && info.disciplinas.indexOf(disc.id) < 0) throw new Error('Você não tem acesso a esta disciplina.');
   const texto = texto_(o.texto, 2000).trim();
   if (!texto) throw new Error('Descreva a observação.');
   inserir_('ObservacoesGerais', {
@@ -1093,9 +1108,11 @@ const ACOES = {
   getExcluidos: [getExcluidos_, 'A', true]
 };
 
-function perfilPermitido_(regra, perfil) {
+function perfilPermitido_(regra, info) {
+  const perfil = info.perfil;
   if (regra === 'T') return true;
-  if (regra === 'E') return perfil === 'admin' || perfil === 'encarregado'; // escrita: consulta (Gabriel, Jailton) nunca escreve
+  // escrita: admin e encarregado; 'consulta' só se tiver disciplinas liberadas (ex.: Jailton em Revestimentos)
+  if (regra === 'E') return perfil === 'admin' || perfil === 'encarregado' || (perfil === 'consulta' && info.disciplinas.length > 0);
   return perfil === 'admin';
 }
 
@@ -1118,7 +1135,7 @@ function doPost(e) {
     if (!info) return json_({ ok: false, sessao: false, erro: 'Sessão expirada. Entre novamente.' });
     const acao = ACOES[req.action];
     if (!acao) return json_(erro_('Ação desconhecida.'));
-    if (!perfilPermitido_(acao[1], info.perfil)) return json_(erro_('Acesso restrito.'));
+    if (!perfilPermitido_(acao[1], info)) return json_(erro_('Acesso restrito.'));
     let lock = null;
     if (!acao[2]) {
       lock = LockService.getScriptLock();
