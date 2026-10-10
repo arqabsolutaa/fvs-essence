@@ -14,7 +14,7 @@
  * Cadastros → Usuários; só registram e veem as próprias fotos de andamento).
  */
 
-const VERSAO = '1.2.0';
+const VERSAO = '1.3.0';
 /** Enquanto true, usuário que AINDA NÃO tem senha definida entra sem senha. Quem já tem senha continua exigindo. */
 const PERMITIR_SEM_SENHA = true;
 const TZ = 'America/Sao_Paulo';
@@ -274,6 +274,7 @@ function infoUsuario_(nome) {
   if (USUARIOS.indexOf(nome) >= 0) return { nome: nome, perfil: 'completo', disciplinas: [] };
   const r = lerAba_('Usuarios').filter(function (x) { return x.nome === nome && x.ativo !== 'nao'; })[0];
   if (!r) return null;
+  if (r.perfil === 'completo') return { nome: nome, perfil: 'completo', disciplinas: [] };
   return { nome: nome, perfil: 'encarregado', disciplinas: String(r.disciplinas || '').split(',').filter(Boolean) };
 }
 
@@ -284,6 +285,7 @@ function listarUsuarios_() {
   const lista = USUARIOS.map(function (n) { return { nome: n, competencias: ['Administração'] }; });
   lerAba_('Usuarios').forEach(function (x) {
     if (x.ativo === 'nao' || !x.nome) return;
+    if (x.perfil === 'completo') { lista.push({ nome: x.nome, competencias: ['Administração'] }); return; }
     const comp = String(x.disciplinas || '').split(',').filter(function (id) { return nomeDisc[id]; }).map(function (id) { return nomeDisc[id]; });
     if (comp.length) lista.push({ nome: x.nome, competencias: comp });
   });
@@ -874,17 +876,18 @@ function salvarUsuario_(req, u) {
     if (USUARIOS.some(function (x) { return x.toLowerCase() === lower; })) throw new Error('Este nome é reservado.');
     if (todos.some(function (x) { return String(x.nome).toLowerCase() === lower; })) throw new Error('Já existe um usuário com esse nome.');
   }
-  const disciplinas = (d.disciplinas || []).map(String).filter(idValido_);
+  const perfil = (existente ? existente.perfil : d.perfil) === 'completo' || d.perfil === 'completo' ? 'completo' : 'encarregado';
+  const disciplinas = perfil === 'completo' ? [] : (d.disciplinas || []).map(String).filter(idValido_);
   const senha = String(d.senha || '');
   if (!existente && !senha && !PERMITIR_SEM_SENHA) throw new Error('Informe a senha (4 a 8 números).');
   if (senha) validarPin_(senha);
   let id;
   if (existente) {
     id = existente.id;
-    atualizar_('Usuarios', id, { disciplinas: disciplinas.join(',') });
+    atualizar_('Usuarios', id, { disciplinas: disciplinas.join(','), perfil: perfil });
   } else {
     id = novoId_();
-    inserir_('Usuarios', { id: id, nome: nome, perfil: 'encarregado', disciplinas: disciplinas.join(','), ativo: 'sim' });
+    inserir_('Usuarios', { id: id, nome: nome, perfil: perfil, disciplinas: disciplinas.join(','), ativo: 'sim' });
   }
   if (senha) definirSenha_(nome, senha);
   registrarLog_(u, existente ? (senha ? 'usuario_editado_senha_redefinida' : 'usuario_editado') : 'usuario_criado', id, nome);

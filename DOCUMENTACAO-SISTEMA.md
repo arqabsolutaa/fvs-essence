@@ -55,7 +55,7 @@ Sistema **separado** do Dashboard Essence Residence (repositório `arqabsolutaa/
 | Perfil | Pode |
 |---|---|
 | `admin` (Bárbara) | Tudo: FVS, andamento, cadastros, usuários, histórico, exclusões |
-| `completo` (Gabriel) | FVS, andamento, cadastros. Não vê histórico nem exclui |
+| `completo` (Gabriel, Jailton) | FVS, andamento, cadastros, todas as disciplinas. Não vê histórico, usuários nem exclui. Gabriel é fixo no código; os demais são criados em Cadastros → Usuários com perfil "Coordenação" |
 | `encarregado` | **Só** registrar andamento e ver **todos os registros das competências dele** (inclui os dos colegas da mesma competência), nunca de outra competência |
 
 - A Bárbara cria e arquiva usuários em Cadastros → Usuários (nome, perfil, disciplinas liberadas, senha). Usuário arquivado perde o acesso na hora (o servidor confere a cada chamada).
@@ -160,3 +160,4 @@ Gerados no navegador com jsPDF, no estilo Essence (marrom `#43331e`, dourado `#8
 - **10/10/2026 — v1.2.4**: tela de entrada redesenhada: tela dividida, foto do prédio à esquerda e, à direita, a mesma foto desfocada em cinza escuro com o formulário em branco (campos só com linha embaixo, botão cinza escuro, logo em branco). No celular a foto fica em cima. Só `index.html`.
 - **10/10/2026 — v1.2.5**: tela de entrada com a foto da fachada (`assets/capa-fundo.jpg`, escurecida) em tela cheia e o formulário num cartão de vidro (fundo desfocado, borda fina) no centro. No computador os campos têm só a linha embaixo; no celular, campos e botão em formato de pílula. Teclado numérico também em cinza escuro. O modo de login não mudou. Só `index.html` e a imagem.
 - **10/10/2026 — v1.2.6**: a capa mostra só "Essence Residence" (sem "FVS" nem subtítulo; o título da aba do navegador também). "Competência" passou a se chamar **Disciplina** em toda a tela (login, Cadastros, Usuários). Teclado numérico menor (mantém o X). Mudança de texto só em comentários do `Code.gs`: não exige reimplantar.
+- **10/10/2026 — v1.3.0**: perfil "Coordenação" (vê todas as disciplinas, como o Gabriel) pode ser criado em Cadastros → Usuários, que passou a se chamar "Novo usuário" com campo Perfil. Usuários da obra criados por um arquivo de apoio `Acessos.gs` (fora do repositório, com os nomes da equipe): Luciano (Elétrica), Francisco (Hidráulica), Jordeano (Estrutura e Civil), José (Civil), Jailton (Coordenação). Entram sem senha até as senhas serem definidas. **Mudou o `Code.gs`**: colar, adicionar o arquivo `Acessos.gs` no editor, rodar `importarAcessos()` e reimplantar com Nova versão.

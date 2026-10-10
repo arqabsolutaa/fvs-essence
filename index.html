@@ -1484,34 +1484,40 @@ async function salvarDisciplina() {
 
 function viewUsuarios() {
   const lista = S.d.usuarios.slice().sort((a, b) => (ativo(b) - ativo(a)) || nat(a.nome, b.nome));
+  const perfilTxt = u => u.perfil === 'completo' ? 'Coordenação · vê tudo' : 'Encarregado · ' + nomesDisc(u);
   const nomesDisc = u => { const ids = String(u.disciplinas || '').split(',').filter(Boolean); return ids.length ? ids.map(id => (S.d.disciplinas.filter(d => d.id === id)[0] || { nome: '?' }).nome).join(', ') : 'todas as disciplinas'; };
-  return '<div class="titulo-sec" style="margin-top:22px"><h2>Usuários</h2><button class="btn" type="button" onclick="abrirUsuario()">+ Novo encarregado</button></div>' +
+  return '<div class="titulo-sec" style="margin-top:22px"><h2>Usuários</h2><button class="btn" type="button" onclick="abrirUsuario()">+ Novo usuário</button></div>' +
     '<div class="card"><b>Bárbara</b> <span class="sub">administradora: acesso total</span></div>' +
     '<div class="card"><b>Gabriel</b> <span class="sub">acesso completo, sem histórico, usuários nem exclusões</span></div>' +
-    lista.map(u => '<div class="card" style="' + (ativo(u) ? '' : 'opacity:.6') + '"><div class="linha-item"><div class="info"><b>' + h(u.nome) + '</b><div class="sub">Encarregado · ' + h(nomesDisc(u)) + (ativo(u) ? '' : ' · arquivado') + '</div></div>' +
+    lista.map(u => '<div class="card" style="' + (ativo(u) ? '' : 'opacity:.6') + '"><div class="linha-item"><div class="info"><b>' + h(u.nome) + '</b><div class="sub">' + h(perfilTxt(u)) + (ativo(u) ? '' : ' · arquivado') + '</div></div>' +
       '<div class="acoes"><button class="btn sec sm" type="button" onclick="abrirUsuario(\'' + u.id + '\')">Editar</button><button class="btn sec sm" type="button" onclick="alternarAtivo(\'Usuarios\',\'' + u.id + '\')">' + (ativo(u) ? 'Arquivar' : 'Reativar') + '</button></div></div></div>').join('') +
-    '<p class="nota">Encarregados só registram fotos de andamento e veem os próprios registros. Arquivar bloqueia o acesso na hora.</p>';
+    '<p class="nota">Encarregados registram e veem só as disciplinas deles. Coordenação vê tudo, sem histórico, usuários nem exclusões. Arquivar bloqueia o acesso na hora.</p>';
 }
 function abrirUsuario(id) {
   const u = id ? S.d.usuarios.filter(x => x.id === id)[0] : null;
   const marcadas = u ? String(u.disciplinas || '').split(',').filter(Boolean) : [];
   const discs = S.d.disciplinas.filter(d => ativo(d) || marcadas.indexOf(d.id) >= 0).sort((a, b) => nat(a.nome, b.nome));
-  const el = abrirModal(u ? 'Editar encarregado' : 'Novo encarregado',
+  const el = abrirModal(u ? 'Editar usuário' : 'Novo usuário',
     '<div class="campo-v"><label>Nome (aparece na lista de login)</label><input type="text" id="us-nome" value="' + h(u ? u.nome : '') + '" ' + (u ? 'disabled' : '') + '></div>' +
     '<div class="campo-v"><label>' + (u ? 'Nova senha (deixe em branco para manter)' : 'Senha (só números, 4 a 8 dígitos)') + '</label><input type="text" id="us-senha" inputmode="numeric" pattern="[0-9]*" maxlength="8" autocomplete="off"></div>' +
-    '<div class="campo-v"><label>Disciplinas liberadas</label><div class="checks">' + discs.map(d => '<label><input type="checkbox" value="' + h(d.id) + '" ' + (marcadas.indexOf(d.id) >= 0 ? 'checked' : '') + '>' + h(d.nome) + '</label>').join('') + '</div>' +
+    '<div class="campo-v"><label>Perfil</label><select id="us-perfil"><option value="encarregado">Encarregado: só as disciplinas marcadas</option><option value="completo">Coordenação: vê todas as disciplinas</option></select></div>' +
+    '<div id="us-discs" class="campo-v"><label>Disciplinas liberadas</label><div class="checks">' + discs.map(d => '<label><input type="checkbox" value="' + h(d.id) + '" ' + (marcadas.indexOf(d.id) >= 0 ? 'checked' : '') + '>' + h(d.nome) + '</label>').join('') + '</div>' +
     '<p class="nota">Ele vê e registra apenas nas disciplinas marcadas, incluindo o que os colegas da mesma disciplina registrarem. Marque ao menos uma.</p></div>' +
     (u ? '<p class="nota">O nome não pode ser alterado: os registros ficam ligados a ele.</p>' : ''),
     { rodape: '<button class="btn" id="us-salvar" type="button">Salvar</button>' });
+  const sp = $('#us-perfil', el); sp.value = u && u.perfil === 'completo' ? 'completo' : 'encarregado';
+  const ajustarPerfil = () => { $('#us-discs', el).hidden = sp.value === 'completo'; };
+  sp.onchange = ajustarPerfil; ajustarPerfil();
   $('#us-salvar', el).onclick = async () => {
     const nome = $('#us-nome', el).value.trim(); const senha = $('#us-senha', el).value;
     if (nome.length < 2) return toast('Informe o nome.', true);
     if (senha && !/^\d{4,8}$/.test(senha)) return toast('A senha deve ter de 4 a 8 números.', true);
     const discs = Array.from(el.querySelectorAll('.checks input:checked')).map(i => i.value);
-    if (!discs.length) return toast('Marque ao menos uma disciplina.', true);
+    const perfil = sp.value;
+    if (perfil === 'encarregado' && !discs.length) return toast('Marque ao menos uma disciplina.', true);
     const btn = $('#us-salvar', el); btn.disabled = true;
     try {
-      await enviarComRetry('salvarUsuario', { usuario: { id: u ? u.id : '', nome: nome, senha: senha, disciplinas: discs } });
+      await enviarComRetry('salvarUsuario', { usuario: { id: u ? u.id : '', nome: nome, senha: senha, perfil: perfil, disciplinas: discs } });
       await carregar(); fecharModal(el); render(); toast('Usuário salvo'); popularUsuarios();
     } catch (e) { btn.disabled = false; toast(e.message, true); }
   };
