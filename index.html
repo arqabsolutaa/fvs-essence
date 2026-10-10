@@ -22,8 +22,11 @@ button{cursor:pointer}
 [hidden]{display:none!important}
 
 /* Login */
-#login{position:fixed;inset:0;z-index:1000;background:linear-gradient(rgba(30,32,34,.35),rgba(30,32,34,.55)),url(assets/capa-fundo.jpg) center 30%/cover #2b2d2f;display:flex;align-items:center;justify-content:center;padding:20px;overflow:auto}
-.login-box{background:rgba(245,244,240,.96);border-radius:16px;padding:28px 24px;width:100%;max-width:380px;box-shadow:0 20px 50px rgba(0,0,0,.45);backdrop-filter:blur(4px)}
+#login{position:fixed;inset:0;z-index:1000;background:#1e2124;display:flex;align-items:flex-end;justify-content:center;padding:20px;overflow:auto}
+#login::before{content:'';position:fixed;inset:-30px;background:url(assets/capa-fundo.jpg) center/cover;filter:blur(28px) brightness(.45)}
+#login::after{content:'';position:fixed;left:0;right:0;top:0;height:125vw;background:url(assets/capa-fundo.jpg) center/100% 100% no-repeat;pointer-events:none;-webkit-mask-image:linear-gradient(to bottom,#000 80%,transparent);mask-image:linear-gradient(to bottom,#000 80%,transparent)}
+@media(min-aspect-ratio:1/1){#login{align-items:center;justify-content:flex-end;padding-right:5vw}#login::after{right:auto;left:3vw;top:0;bottom:0;height:auto;width:80vh;-webkit-mask-image:linear-gradient(to right,transparent,#000 12%,#000 88%,transparent);mask-image:linear-gradient(to right,transparent,#000 12%,#000 88%,transparent)}}
+.login-box{position:relative;z-index:1;background:rgba(245,244,240,.96);border-radius:16px;padding:28px 24px;width:100%;max-width:380px;box-shadow:0 20px 50px rgba(0,0,0,.45);backdrop-filter:blur(4px)}
 .login-box h1{font-size:22px;color:var(--marrom);margin:0 0 2px}
 .login-box p{margin:0 0 14px;color:var(--suave);font-size:14px}
 .login-box label{display:block;font-size:12px;font-weight:700;color:var(--suave);text-transform:uppercase;letter-spacing:.06em;margin:12px 0 4px}
