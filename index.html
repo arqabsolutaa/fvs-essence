@@ -279,8 +279,8 @@ const S = {
   d: DADOS_VAZIOS(),
   and: null, andCarregando: false, obs: null, obsCarregando: false, filaCache: [],
   filtros: {
-    fvs: { status: '', apto: '', modelo: '', forn: '', q: '' },
-    pend: { status: 'abertas', apto: '', forn: '' },
+    fvs: { status: '', apto: '', modelo: '', forn: '', q: '', onde: '' },
+    pend: { status: 'abertas', apto: '', forn: '', onde: '' },
     reg: { apto: '', disc: '', ponto: '' },
     obs: { disc: '', status: '' },
     cob: { disc: '' }
@@ -321,6 +321,11 @@ function nomeArquivoLimpo(s) { return String(s).normalize('NFD').replace(/[̀-ͯ
 function nat(a, b) { return String(a).localeCompare(String(b), 'pt-BR', { numeric: true }); }
 function unicos(arr) { return Array.from(new Set(arr.filter(Boolean))); }
 function ativo(x) { return x.ativo !== 'nao'; }
+/** Torre = áreas comuns (térreo, ático, barrilete…); Unidade = apartamento. */
+function tipoLocal(cod) { const a = S.d.apartamentos.filter(x => x.codigo === cod)[0]; return a && a.tipo === 'Área comum' ? 'Torre' : 'Unidade'; }
+function escopoTxt(e) { return e === 'Torre' ? 'Torre' : (e === 'Unidade' ? 'Unidades' : 'Torre e unidades'); }
+function modeloServeLocal(m, cod) { return !cod || !m.escopo || m.escopo === tipoLocal(cod); }
+const OPC_ONDE = [['Torre', 'Torre (áreas comuns)'], ['Unidade', 'Unidades']];
 function exigeFoto(it) { const x = S.d.itens.filter(i => i.id === it.item_id)[0]; return !!(x && x.exige_foto === 'sim'); }
 function nomeDiscId(id) { const d = S.d.disciplinas.filter(x => x.id === id)[0]; return d ? d.nome : ''; }
 
@@ -572,7 +577,7 @@ function render() {
   else if (S.aba === 'pend') v.innerHTML = viewPend();
   else if (S.aba === 'and') v.innerHTML = viewAndamento();
   else if (S.aba === 'obs') { v.innerHTML = viewObs(); if (!S.obs) carregarObs(); }
-  else if (S.aba === 'bib') v.innerHTML = viewBiblioteca();
+  else if (S.aba === 'bib') { v.innerHTML = viewBiblioteca(); bibAtualizar(); }
   else if (S.aba === 'modelos') v.innerHTML = viewModelos();
   else if (S.aba === 'cad') v.innerHTML = viewCadastros();
   else if (S.aba === 'hist') { v.innerHTML = viewHist(); carregarHist(); }
@@ -602,7 +607,7 @@ function vencida(p) { return p.status === 'Aberta' && p.prazo && p.prazo < hoje(
 function fvsFiltradas() {
   const F = S.filtros.fvs; const q = F.q.trim().toLowerCase();
   return S.d.fvs.filter(x =>
-    (!F.status || x.status === F.status) && (!F.apto || x.apartamento === F.apto) &&
+    (!F.status || x.status === F.status) && (!F.apto || x.apartamento === F.apto) && (!F.onde || tipoLocal(x.apartamento) === F.onde) &&
     (!F.modelo || x.modelo_id === F.modelo) && (!F.forn || x.fornecedor_nome === F.forn) &&
     (!q || (x.numero + ' ' + x.apartamento + ' ' + x.modelo_nome + ' ' + x.fornecedor_nome).toLowerCase().indexOf(q) >= 0)
   ).sort((a, b) => (b.data + b.numero).localeCompare(a.data + a.numero));
@@ -628,6 +633,7 @@ function viewFVS() {
     '<div class="kpi ' + (venc ? 'alerta' : '') + '"><b>' + venc + '</b><span>Vencidas</span></div></div>' +
     '<div class="barra">' +
     '<div class="campo"><label>Buscar</label><input type="text" value="' + h(F.q) + '" placeholder="Nº, apto, serviço…" oninput="S.filtros.fvs.q=this.value;filtrarListaFVS()"></div>' +
+    '<div class="campo"><label>Onde</label><select onchange="setF(\'fvs\',\'onde\',this.value)">' + opcoes(OPC_ONDE, F.onde, 'Torre e unidades') + '</select></div>' +
     '<div class="campo"><label>Situação</label><select onchange="setF(\'fvs\',\'status\',this.value)">' + opcoes(['Aprovada', 'Com pendência', 'Reinspecionada'], F.status, 'Todas') + '</select></div>' +
     '<div class="campo"><label>Apartamento</label><select onchange="setF(\'fvs\',\'apto\',this.value)">' + opcoes(aptos, F.apto, 'Todos') + '</select></div>' +
     '<div class="campo"><label>Serviço</label><select onchange="setF(\'fvs\',\'modelo\',this.value)">' + opcoes(modelos, F.modelo, 'Todos') + '</select></div>' +
@@ -776,11 +782,11 @@ function desenharEditor() {
   const apAtual = E.fvs.apartamento;
   const aptosOpts = ap.map(a => [a.codigo, (a.tipo === 'Área comum' ? '' : 'Apto ') + a.codigo]);
   if (apAtual && !ap.some(a => a.codigo === apAtual)) aptosOpts.push([apAtual, apAtual]);
-  const modelos = S.d.modelos.filter(m => ativo(m) || m.id === E.fvs.modelo_id).sort((a, b) => nat(nomeDiscId(a.disciplina_id) + a.nome, nomeDiscId(b.disciplina_id) + b.nome)).map(m => [m.id, (S.admin && m.disciplina_id ? nomeDiscId(m.disciplina_id) + ' · ' : '') + m.nome]);
+  const modelos = S.d.modelos.filter(m => (ativo(m) && modeloServeLocal(m, E.fvs.apartamento)) || m.id === E.fvs.modelo_id).sort((a, b) => nat(nomeDiscId(a.disciplina_id) + a.nome, nomeDiscId(b.disciplina_id) + b.nome)).map(m => [m.id, (S.admin && m.disciplina_id ? nomeDiscId(m.disciplina_id) + ' · ' : '') + m.nome]);
   const forns = S.d.fornecedores.filter(f => ativo(f) || f.id === E.fvs.fornecedor_id).map(f => [f.id, f.nome]);
   const corpo =
     '<div class="grid2"><div class="campo-v"><label>Data</label><input type="date" value="' + h(E.fvs.data) + '" oninput="E.fvs.data=this.value;rascunho()"></div>' +
-    '<div class="campo-v"><label>Apartamento / local</label><select onchange="E.fvs.apartamento=this.value;rascunho()">' + opcoes(aptosOpts, apAtual, 'Selecione…') + '</select></div>' +
+    '<div class="campo-v"><label>Apartamento / local</label><select onchange="trocarLocal(this.value)">' + opcoes(aptosOpts, apAtual, 'Selecione…') + '</select></div>' +
     '<div class="campo-v"><label>Serviço (modelo)</label><select id="ed-modelo" ' + (E.existente ? 'disabled' : '') + ' onchange="trocarModelo(this.value)">' + opcoes(modelos, E.fvs.modelo_id, 'Selecione…') + '</select></div>' +
     '<div class="campo-v"><label>Fornecedor</label><select onchange="trocarFornecedor(this.value)">' + opcoes(forns, E.fvs.fornecedor_id, 'Sem fornecedor') + '</select></div></div>' +
     '<div class="campo-v"><label>Responsável pela obra</label><input type="text" value="' + h(E.fvs.responsavel_obra) + '" oninput="E.fvs.responsavel_obra=this.value;rascunho()"></div>' +
@@ -816,6 +822,12 @@ function rascunho() {
       fvs: E.fvs, itens: E.itens.map(it => ({ id: it.id, item_id: it.item_id, descricao: it.descricao, criterio: it.criterio, resultado: it.resultado, observacao: it.observacao, resp: it.resp, prazo: it.prazo }))
     }));
   }, 500);
+}
+function trocarLocal(v) {
+  E.fvs.apartamento = v; rascunho();
+  const sel = $('#ed-modelo'); if (!sel || E.existente) return;
+  const mods = S.d.modelos.filter(m => (ativo(m) && modeloServeLocal(m, v)) || m.id === E.fvs.modelo_id).sort((a, b) => nat(nomeDiscId(a.disciplina_id) + a.nome, nomeDiscId(b.disciplina_id) + b.nome)).map(m => [m.id, (S.admin && m.disciplina_id ? nomeDiscId(m.disciplina_id) + ' · ' : '') + m.nome]);
+  sel.innerHTML = opcoes(mods, E.fvs.modelo_id, 'Selecione…');
 }
 async function trocarModelo(mid) {
   if (E.itens.some(it => it.resultado || it.observacao || it.fotos.length)) {
@@ -1020,6 +1032,7 @@ function pendFiltradas() {
     if (F.status === 'vencidas' && !vencida(p)) return false;
     if (F.status === 'resolvidas' && p.status !== 'Resolvida') return false;
     if (F.apto && p.apartamento !== F.apto) return false;
+    if (F.onde && tipoLocal(p.apartamento) !== F.onde) return false;
     if (F.forn && p.fornecedor_nome !== F.forn) return false;
     return true;
   }).sort((a, b) => (a.status === 'Aberta' ? 0 : 1) - (b.status === 'Aberta' ? 0 : 1) || String(a.prazo).localeCompare(String(b.prazo)));
@@ -1030,7 +1043,7 @@ function viewPend() {
   const forns = unicos(S.d.pendencias.map(x => x.fornecedor_nome)).sort(nat);
   return '<div class="titulo-sec"><h2>Pendências</h2><div class="acoes"><button class="btn sec sm" type="button" onclick="atualizar()">Atualizar</button>' +
     '<button class="btn sm" type="button" onclick="gerarPDFPendencias()">Gerar PDF</button></div></div>' +
-    '<div class="barra"><div class="campo"><label>Situação</label><select onchange="setF(\'pend\',\'status\',this.value)">' +
+    '<div class="barra"><div class="campo"><label>Onde</label><select onchange="setF(\'pend\',\'onde\',this.value)">' + opcoes(OPC_ONDE, F.onde, 'Torre e unidades') + '</select></div><div class="campo"><label>Situação</label><select onchange="setF(\'pend\',\'status\',this.value)">' +
     [['abertas', 'Abertas'], ['vencidas', 'Vencidas'], ['resolvidas', 'Resolvidas'], ['todas', 'Todas']].map(o => '<option value="' + o[0] + '"' + (F.status === o[0] ? ' selected' : '') + '>' + o[1] + '</option>').join('') + '</select></div>' +
     '<div class="campo"><label>Apartamento</label><select onchange="setF(\'pend\',\'apto\',this.value)">' + opcoes(aptos, F.apto, 'Todos') + '</select></div>' +
     '<div class="campo"><label>Fornecedor</label><select onchange="setF(\'pend\',\'forn\',this.value)">' + opcoes(forns, F.forn, 'Todos') + '</select></div></div>' +
@@ -1087,7 +1100,7 @@ function viewModelos() {
     '<p class="nota" style="margin-top:0">Cada modelo é um serviço com seus itens e critérios. FVS já feitas guardam uma cópia dos itens, então editar um modelo não altera o que já foi registrado.</p>' +
     (lista.length ? lista.map(m => {
       const n = S.d.itens.filter(i => i.modelo_id === m.id).length;
-      return '<div class="card" style="' + (ativo(m) ? '' : 'opacity:.6') + '"><div class="linha-item"><div class="info"><b>' + h(m.nome) + '</b><div class="sub">' + (m.disciplina_id ? h(nomeDiscId(m.disciplina_id)) + ' · ' : 'Sem disciplina · ') + n + ' itens' + (m.descricao ? ' · ' + h(m.descricao) : '') + (ativo(m) ? '' : ' · arquivado') + '</div></div>' +
+      return '<div class="card" style="' + (ativo(m) ? '' : 'opacity:.6') + '"><div class="linha-item"><div class="info"><b>' + h(m.nome) + '</b><div class="sub">' + (m.disciplina_id ? h(nomeDiscId(m.disciplina_id)) + (m.encarregado ? ' (' + h(m.encarregado) + ')' : '') + ' · ' : 'Sem disciplina · ') + escopoTxt(m.escopo) + ' · ' + n + ' itens' + (m.descricao ? ' · ' + h(m.descricao) : '') + (ativo(m) ? '' : ' · arquivado') + '</div></div>' +
         '<div class="acoes"><button class="btn sec sm" type="button" onclick="abrirModelo(\'' + m.id + '\')">Editar</button>' +
         '<button class="btn sec sm" type="button" onclick="abrirModelo(\'' + m.id + '\',true)">Duplicar</button>' +
         '<button class="btn sec sm" type="button" onclick="alternarAtivo(\'Modelos\',\'' + m.id + '\')">' + (ativo(m) ? 'Arquivar' : 'Reativar') + '</button></div></div></div>';
@@ -1097,16 +1110,20 @@ let M = null; let MMODAL = null;
 function abrirModelo(id, duplicar) {
   const m = id ? S.d.modelos.filter(x => x.id === id)[0] : null;
   const itens = m ? S.d.itens.filter(i => i.modelo_id === m.id).sort((a, b) => Number(a.ordem) - Number(b.ordem)).map(i => ({ id: duplicar ? uid() : i.id, descricao: i.descricao, criterio: i.criterio, exige_foto: i.exige_foto === 'sim' })) : [{ id: uid(), descricao: '', criterio: '' }];
-  M = { disciplina_id: m ? (m.disciplina_id || '') : '', id: (m && !duplicar) ? m.id : uid(), nome: m ? (duplicar ? m.nome + ' (cópia)' : m.nome) : '', descricao: m ? m.descricao : '', itens: itens };
+  M = { disciplina_id: m ? (m.disciplina_id || '') : '', escopo: m ? (m.escopo || '') : '', encarregado: m ? (m.encarregado || '') : '', id: (m && !duplicar) ? m.id : uid(), nome: m ? (duplicar ? m.nome + ' (cópia)' : m.nome) : '', descricao: m ? m.descricao : '', itens: itens };
   MMODAL = abrirModal(m && !duplicar ? 'Editar modelo' : 'Novo modelo',
     '<div class="campo-v"><label>Nome do serviço</label><input type="text" value="' + h(M.nome) + '" oninput="M.nome=this.value"></div>' +
-    '<div class="campo-v"><label>Disciplina (quem usa este checklist)</label><select onchange="M.disciplina_id=this.value">' + opcoes(S.d.disciplinas.filter(ativo).map(d => [d.id, d.nome]), M.disciplina_id, 'Nenhuma (só a administração vê)') + '</select></div>' +
+    '<div class="grid2"><div class="campo-v"><label>Disciplina (quem usa este checklist)</label><select onchange="M.disciplina_id=this.value;M.encarregado=\'\';atualizarEncModelo()">' + opcoes(S.d.disciplinas.filter(ativo).map(d => [d.id, d.nome]), M.disciplina_id, 'Nenhuma (só a administração vê)') + '</select></div>' +
+    '<div class="campo-v"><label>Encarregado (opcional)</label><select id="m-enc" onchange="M.encarregado=this.value"></select></div></div>' +
+    '<div class="campo-v"><label>Onde se aplica</label><select onchange="M.escopo=this.value">' + opcoes(OPC_ONDE, M.escopo, 'Torre e unidades') + '</select></div>' +
     '<div class="campo-v"><label>Descrição (opcional)</label><input type="text" value="' + h(M.descricao) + '" oninput="M.descricao=this.value"></div>' +
     '<div class="sec-t">Itens e critérios</div><div id="m-itens"></div>' +
     '<button class="btn sec" type="button" onclick="mAdd()">+ Adicionar item</button>',
     { largo: true, rodape: '<button class="btn" id="m-salvar" type="button" onclick="salvarModelo()">Salvar modelo</button>' });
-  desenharModeloItens();
+  atualizarEncModelo(); desenharModeloItens();
 }
+function encarregadosDe(discId) { return S.d.usuarios.filter(u => ativo(u) && u.perfil !== 'completo' && u.perfil !== 'consulta' && String(u.disciplinas || '').split(',').indexOf(discId) >= 0).map(u => u.nome).sort(nat); }
+function atualizarEncModelo() { const s = $('#m-enc'); if (s) s.innerHTML = opcoes(encarregadosDe(M.disciplina_id), M.encarregado, 'Todos da disciplina'); }
 function desenharModeloItens() {
   $('#m-itens').innerHTML = M.itens.map((it, i) => '<div class="card"><div class="campo-v"><label>Item ' + (i + 1) + '</label><input type="text" value="' + h(it.descricao) + '" placeholder="O que será verificado" oninput="M.itens[' + i + '].descricao=this.value"></div>' +
     '<div class="campo-v"><label>Como conferir (opcional)</label><textarea placeholder="Só se precisar explicar" oninput="M.itens[' + i + '].criterio=this.value">' + h(it.criterio) + '</textarea></div>' +
@@ -1123,7 +1140,7 @@ async function salvarModelo() {
   if (!itens.length) return toast('Inclua ao menos um item com descrição.', true);
   const btn = $('#m-salvar'); btn.disabled = true; btn.textContent = 'Salvando…';
   try {
-    await enviarComRetry('salvarModelo', { modelo: { id: M.id, nome: M.nome, descricao: M.descricao, disciplina_id: M.disciplina_id }, itens: itens });
+    await enviarComRetry('salvarModelo', { modelo: { id: M.id, nome: M.nome, descricao: M.descricao, disciplina_id: M.disciplina_id, escopo: M.escopo, encarregado: M.encarregado }, itens: itens });
     await carregar(); fecharModal(MMODAL); MMODAL = null; render(); toast('Modelo salvo');
   } catch (e) { btn.disabled = false; btn.textContent = 'Salvar modelo'; toast(e.message, true); }
 }
@@ -1170,8 +1187,10 @@ function abrirApartamentos() {
   const el = abrirModal('Adicionar apartamentos / locais',
     '<div class="campo-v"><label>Tipo</label><select id="ap-tipo"><option>Apartamento</option><option>Área comum</option></select></div>' +
     '<div class="campo-v"><label>Lista (um por linha ou separados por vírgula)</label><textarea id="ap-lista" style="min-height:140px" placeholder="11&#10;12&#10;21"></textarea></div>' +
+    '<button class="btn sec sm" type="button" id="ap-sug" style="margin-bottom:10px">Preencher com locais da Torre</button>' +
     '<p class="nota">Códigos que já existem são ignorados.</p>',
     { rodape: '<button class="btn" id="ap-salvar" type="button">Adicionar</button>' });
+  $('#ap-sug', el).onclick = () => { $('#ap-tipo', el).value = 'Área comum'; $('#ap-lista', el).value = ['Térreo', 'Hall de entrada', 'Garagem', 'Subsolo', 'Escadaria', 'Elevadores', 'Shafts da torre', 'Barrilete', 'Ático', 'Casa de máquinas', 'Cobertura', 'Fachada', 'Muros de divisa', 'Salão de festas', 'Piscina', 'Portaria', 'Jardim e áreas externas'].join('\n'); };
   $('#ap-salvar', el).onclick = async () => {
     const codigos = $('#ap-lista', el).value.split(/[\n,;]+/).map(s => s.trim()).filter(Boolean);
     if (!codigos.length) return toast('Digite ao menos um código.', true);
@@ -1302,24 +1321,28 @@ async function excluirObs(id) {
 /* ================================================================== */
 /* Biblioteca de serviços (só a Bárbara)                               */
 /* ================================================================== */
-const BB = { disc: '', open: {} };
+const BB = { disc: '', enc: '', escopo: '', open: {}, sel: {} };
 function bibContar() { return document.querySelectorAll('#bib input[data-sv]:checked').length; }
-function bibAtualizar() { const b = $('#bib-add'); if (b) { const n = bibContar(); b.textContent = n ? 'Adicionar ' + n + ' serviço(s) à disciplina' : 'Marque os serviços'; b.disabled = !n; } }
+function bibAtualizar() { BB.sel = {}; document.querySelectorAll('#bib input[data-sv]:checked').forEach(i => { BB.sel[i.dataset.sv] = 1; }); const b = $('#bib-add'); if (b) { const n = bibContar(); b.textContent = n ? 'Adicionar ' + n + ' serviço(s) à disciplina' : 'Marque os serviços'; b.disabled = !n; } }
 function bibArea(a, marcar) { document.querySelectorAll('#bib input[data-a="' + a + '"]').forEach(i => { if (!i.disabled) i.checked = marcar; }); bibAtualizar(); }
 function viewBiblioteca() {
   const discs = S.d.disciplinas.filter(ativo).sort((a, b) => nat(a.nome, b.nome));
   if (BB.disc && !discs.some(d => d.id === BB.disc)) BB.disc = '';
-  const jaTem = {}; S.d.modelos.filter(m => m.disciplina_id === BB.disc).forEach(m => { jaTem[String(m.nome).toLowerCase()] = true; });
+  const jaTem = {}; S.d.modelos.filter(m => m.disciplina_id === BB.disc && (m.escopo || '') === BB.escopo && (m.encarregado || '') === BB.enc).forEach(m => { jaTem[String(m.nome).toLowerCase()] = true; });
+  const encs = encarregadosDe(BB.disc);
+  if (BB.enc && encs.indexOf(BB.enc) < 0) BB.enc = '';
   const total = LIB.reduce((n, a) => n + a.servicos.length, 0);
   return '<div class="titulo-sec"><h2>Biblioteca de serviços</h2></div>' +
     '<p class="nota" style="margin-top:0">' + total + ' serviços prontos, com itens e critérios. Escolha a disciplina de destino, marque os serviços e toque em Adicionar: os checklists e os pontos de foto aparecem na página dela. Os itens são curtos (Conforme, Não conforme ou N.A.); os marcados com foto obrigatória só salvam com foto. Depois você pode editar tudo em Modelos e Cadastros. Revise a lista com a engenharia.</p>' +
-    '<div class="card"><div class="campo-v" style="margin:0"><label>Adicionar para a disciplina</label><select onchange="BB.disc=this.value;render()">' + opcoes(discs.map(d => [d.id, d.nome]), BB.disc, 'Selecione…') + '</select></div>' +
+    '<div class="card"><div class="grid2"><div class="campo-v"><label>Disciplina</label><select onchange="BB.disc=this.value;BB.enc=\'\';render()">' + opcoes(discs.map(d => [d.id, d.nome]), BB.disc, 'Selecione…') + '</select></div>' +
+    '<div class="campo-v"><label>Encarregado</label><select ' + (BB.disc ? '' : 'disabled') + ' onchange="BB.enc=this.value;render()">' + opcoes(encs, BB.enc, 'Todos da disciplina') + '</select></div></div>' +
+    '<div class="campo-v" style="margin:0"><label>Onde se aplica</label><select onchange="BB.escopo=this.value;render()">' + opcoes(OPC_ONDE, BB.escopo, 'Torre e unidades') + '</select></div>' +
     (discs.length ? '' : '<p class="nota">Cadastre as disciplinas em Cadastros primeiro.</p>') + '</div>' +
     '<div id="bib">' + LIB.map((a, ai) => '<details class="bib-area" ' + (BB.open[ai] ? 'open' : '') + ' ontoggle="BB.open[' + ai + ']=this.open"><summary><b>' + h(a.area) + '</b> <span class="sub">' + a.servicos.length + ' serviços</span></summary>' +
       '<div class="bib-acoes"><button class="btn sec sm" type="button" onclick="bibArea(' + ai + ',true)">Marcar todos</button><button class="btn sec sm" type="button" onclick="bibArea(' + ai + ',false)">Desmarcar</button></div>' +
       a.servicos.map((sv, si) => {
         const tem = !!jaTem[sv.nome.toLowerCase()];
-        return '<div class="bib-sv"><label><input type="checkbox" data-a="' + ai + '" data-sv="' + ai + '-' + si + '" ' + (tem ? 'disabled' : '') + ' onchange="bibAtualizar()"> <b>' + h(sv.nome) + '</b> <span class="sub">' + sv.itens.length + ' itens' + (sv.pontos.length ? ' · ' + sv.pontos.length + ' pontos de foto' : '') + (tem ? ' · já está nesta disciplina' : '') + '</span></label>' +
+        return '<div class="bib-sv"><label><input type="checkbox" data-a="' + ai + '" data-sv="' + ai + '-' + si + '" ' + (tem ? 'disabled' : (BB.sel[ai + '-' + si] ? 'checked' : '')) + ' onchange="bibAtualizar()"> <b>' + h(sv.nome) + '</b> <span class="sub">' + sv.itens.length + ' itens' + (sv.pontos.length ? ' · ' + sv.pontos.length + ' pontos de foto' : '') + (tem ? ' · já adicionado assim' : '') + '</span></label>' +
           '<details><summary class="sub">Ver itens</summary><ol class="bib-itens">' + sv.itens.map(i => '<li>' + h(i[0]) + (i[2] ? ' <span class="sub">· foto obrigatória</span>' : '') + (i[1] ? '<br><span class="sub">' + h(i[1]) + '</span>' : '') + '</li>').join('') + '</ol></details></div>';
       }).join('') + '</details>').join('') + '</div>' +
     '<div class="bib-barra"><button class="btn" id="bib-add" type="button" onclick="bibAdicionar()" disabled>Marque os serviços</button></div>';
@@ -1330,12 +1353,12 @@ async function bibAdicionar() {
   if (!marcados.length) return;
   const servicos = marcados.map(p => LIB[p[0]].servicos[p[1]]);
   const dn = nomeDiscId(BB.disc);
-  if (!(await confirmar('Adicionar ' + servicos.length + ' serviço(s) à disciplina ' + dn + '?', 'Adicionar'))) return;
+  if (!(await confirmar('Adicionar ' + servicos.length + ' serviço(s) a ' + dn + (BB.enc ? ' (' + BB.enc + ')' : '') + ' · ' + escopoTxt(BB.escopo) + '?', 'Adicionar'))) return;
   const btn = $('#bib-add'); btn.disabled = true;
   try {
     progresso('Adicionando…');
-    const r = await enviarComRetry('adicionarServicos', { disciplina_id: BB.disc, servicos: servicos });
-    await carregar(); progresso(null); render();
+    const r = await enviarComRetry('adicionarServicos', { disciplina_id: BB.disc, encarregado: BB.enc, escopo: BB.escopo, servicos: servicos });
+    await carregar(); progresso(null); BB.sel = {}; render();
     toast(r.checklists + ' checklist(s) e ' + r.pontos + ' ponto(s) de foto adicionados a ' + dn);
   } catch (e) { progresso(null); btn.disabled = false; toast(e.message, true); }
 }
