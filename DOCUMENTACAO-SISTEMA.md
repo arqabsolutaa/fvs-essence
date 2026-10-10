@@ -1,12 +1,15 @@
 # Documentação Técnica — Sistema de FVS (Essence Residence)
 
-> Documento de referência do sistema de Ficha de Verificação de Serviço. É atualizado a cada mudança relevante. Última atualização: **09/10/2026** (versão 1.0.0, primeira entrega).
+> Documento de referência do sistema de Ficha de Verificação de Serviço. É atualizado a cada mudança relevante. Última atualização: **09/10/2026** (versão 1.1.0: modo Registro de andamento).
 
 ## 1. O que é
 
-Sistema **separado** do Dashboard Essence Residence (repositório `arqabsolutaa/revestimentos-dashboard`). Não compartilha planilha, Apps Script, senhas nem código com ele. Serve para registrar, em obra, a verificação de qualidade de cada serviço executado (por apartamento ou área comum), controlar as correções exigidas e emitir PDF.
+Sistema **separado** do Dashboard Essence Residence (repositório `arqabsolutaa/revestimentos-dashboard`). Não compartilha planilha, Apps Script, senhas nem código com ele. Tem dois modos:
 
-- **Usuários**: Bárbara (administradora) e Gabriel.
+1. **FVS**: verificação de qualidade de cada serviço executado (por apartamento ou área comum), correções exigidas e PDF.
+2. **Registro de andamento** (v1.1.0): os encarregados de cada disciplina (hidráulica, elétrica…) fotografam o avanço da obra em pontos predefinidos e editáveis. Serve para acompanhar a obra, fornecer material ao manual do proprietário (sequência de tubulação, por exemplo) e organizar as revisões.
+
+- **Usuários**: Bárbara (administradora), Gabriel e os encarregados (cada um com login próprio, cadastrados pela Bárbara).
 - **Empresa/obra**: Absoluta Construtora e Incorporadora · Essence Residence · São Bernardo do Campo/SP.
 
 ## 2. Arquitetura
@@ -46,6 +49,28 @@ Sistema **separado** do Dashboard Essence Residence (repositório `arqabsolutaa/
 - 5 senhas erradas seguidas bloqueiam o usuário por 10 minutos.
 - **Só a Bárbara** vê: aba Histórico (log de ações e conteúdo excluído) e o botão de excluir FVS. O servidor também recusa essas ações para outros usuários.
 
+
+## 4A. Perfis de acesso (v1.1.0)
+
+| Perfil | Pode |
+|---|---|
+| `admin` (Bárbara) | Tudo: FVS, andamento, cadastros, usuários, histórico, exclusões |
+| `completo` (Gabriel) | FVS, andamento, cadastros. Não vê histórico nem exclui |
+| `encarregado` | **Só** registrar andamento e ver os próprios registros, apenas nas disciplinas liberadas para ele |
+
+- A Bárbara cria e arquiva usuários em Cadastros → Usuários (nome, perfil, disciplinas liberadas, senha). Usuário arquivado perde o acesso na hora (o servidor confere a cada chamada).
+- As restrições são aplicadas no **servidor** (tabela de permissões por ação), não só na tela.
+
+## 4B. Registro de andamento
+
+- **Fluxo**: escolher apartamento → disciplina → ponto da lista (editável) → ambiente (opcional) → fotos + legenda → salvar.
+- **Disciplinas e pontos** são cadastros editáveis (Cadastros → Disciplinas), com ordem. Exemplos de partida criados pelo `setup()`.
+- **Revisões**: cada novo registro do mesmo apartamento + ponto + ambiente é a próxima revisão (REV 1, 2, 3…), pela ordem da data de captura. Número calculado na tela, nunca gravado: excluir um registro renumera.
+- **Sem sinal**: o registro (com fotos já reduzidas) fica numa fila no aparelho (IndexedDB) e sobe sozinho ao abrir o sistema, quando a internet volta e a cada 30 s. Envio idempotente (UUID gerado no aparelho): reenviar não duplica. A data/hora registrada é a da captura, não a do envio.
+- **Telas**: Registrar · Registros (por apartamento, agrupado por disciplina/ponto, com histórico de revisões) · Cobertura (matriz apartamento × pontos feitos).
+- **Dossiê em PDF**: por apartamento (e disciplina, se filtrada): pontos em ordem, cada revisão com data, autor, legenda e fotos.
+- Excluir registro: só a Bárbara; conteúdo vai para `Auditoria_Excluidos`.
+
 ## 5. Modelo de dados (abas da planilha)
 
 Todas as células são texto puro (a planilha não converte datas nem números). Colunas novas só podem ser **acrescentadas ao final**; o `setup()` repara o cabeçalho.
@@ -59,7 +84,11 @@ Todas as células são texto puro (a planilha não converte datas nem números).
 | `FVS` | Cabeçalho da ficha: número `FVS-0001`, data, apto, serviço, fornecedor, responsável, situação, assinatura (nome) |
 | `FVS_Itens` | Cópia dos itens no momento da FVS (descrição, critério, resultado C/NC/NA, observação) |
 | `Pendencias` | Uma por item não conforme: responsável, prazo, status, reinspeções |
-| `Fotos` | Metadados das fotos (item, reinspeção, assinatura) e id do arquivo no Drive |
+| `Fotos` | Metadados das fotos (item, reinspeção, assinatura, registro de andamento) e id do arquivo no Drive |
+| `Disciplinas` | Disciplinas do andamento (nome, ativo) |
+| `PontosAndamento` | Pontos fotografáveis de cada disciplina, com ordem |
+| `Registros` | Um registro de andamento: apto, disciplina, ponto, ambiente, legenda, data de captura, autor |
+| `Usuarios` | Perfil e disciplinas liberadas de cada usuário (a senha fica só como hash nas Propriedades do Script) |
 | `Log` | Quem fez o quê e quando |
 | `Auditoria_Excluidos` | Conteúdo completo de tudo que foi excluído. Só cresce |
 
@@ -107,14 +136,17 @@ Gerados no navegador com jsPDF, no estilo Essence (marrom `#43331e`, dourado `#8
 - Sempre que `Code.gs` mudar, entregar o arquivo completo e avisar que é preciso reimplantar.
 - Esta documentação é atualizada a cada mudança.
 
-## 11. Limitações conhecidas (v1.0.0)
+## 11. Limitações conhecidas (v1.1.0)
 
-- **Salvar exige internet.** Rascunho de FVS sem fotos e sem assinatura fica guardado no aparelho se a tela for fechada, mas fotos e assinatura não são guardadas offline.
+- **FVS exige internet para salvar.** (O registro de andamento funciona offline, com fila.) Rascunho de FVS sem fotos e sem assinatura fica guardado no aparelho se a tela for fechada, mas fotos e assinatura não são guardadas offline.
 - Salvar FVS e cadastros mostra uma tela de progresso (não é otimista) porque envolve envio de fotos; só ativar/arquivar é otimista.
 - Não há PDF de auditoria nem registro de valores antes/depois (existe só o log de ações e o conteúdo excluído).
+- Fila offline vive no navegador do aparelho: limpar dados do site apaga o que ainda não subiu. Registros pendentes aparecem com contador no topo.
+- Não há vínculo entre uma FVS e os registros de andamento do mesmo local.
 - Sem logo da Absoluta nos PDFs (o repositório novo ainda não tem a imagem).
-- Não foi testado ainda contra o Google real: o backend foi validado por simulação e o front por checagem de sintaxe. A primeira implantação serve de teste de ponta a ponta.
+- Não foi testado ainda contra o Google real: o backend foi validado por simulação (incluindo perfis, fila, idempotência) e o front por checagem de sintaxe. A primeira implantação serve de teste de ponta a ponta.
 
 ## 12. Histórico de mudanças
 
 - **09/10/2026 — v1.0.0**: primeira entrega. Login, modelos editáveis (3 exemplos), cadastros, FVS com fotos e assinatura, pendências com reinspeção, PDFs, histórico, auditoria e backup.
+- **09/10/2026 — v1.1.0**: modo Registro de andamento (disciplinas, pontos, registros com fotos e legenda, revisões, cobertura, dossiê PDF), perfis (admin/completo/encarregado) com login próprio, cadastro de usuários, fila offline. **Mudou o `Code.gs`**: colar o arquivo completo, rodar `setup()` de novo (cria as abas novas e repara cabeçalhos) e reimplantar com "Nova versão".

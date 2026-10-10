@@ -7,12 +7,18 @@
  * do Script pela função configurarSenhas(), rodada uma única vez no editor.
  *
  * Primeira vez: rodar setup() e depois configurarSenhas() e criarGatilhoBackupDiario().
+ * Ao colar uma versão nova deste arquivo: rodar setup() de novo (cria abas novas e repara
+ * cabeçalhos sem apagar dados) e reimplantar o Web App com "Nova versão".
+ *
+ * Perfis: admin (Bárbara) · completo (Gabriel) · encarregado (criados pela Bárbara na tela
+ * Cadastros → Usuários; só registram e veem as próprias fotos de andamento).
  */
 
-const VERSAO = '1.0.0';
+const VERSAO = '1.1.0';
 const TZ = 'America/Sao_Paulo';
-const USUARIOS = ['Bárbara', 'Gabriel'];
+const USUARIOS = ['Bárbara', 'Gabriel']; // usuários fixos; encarregados ficam na aba Usuarios
 const ADMIN = 'Bárbara';
+const MAX_FOTOS_REGISTRO = 12;
 const SESSAO_SEGUNDOS = 21600; // 6 h (máximo do CacheService), renovada a cada uso
 const PASTA_FOTOS = 'FVS_Essence_Fotos';
 const PASTA_BACKUP = 'Backup_FVS_Essence';
@@ -28,7 +34,12 @@ const ABAS = {
   FVS_Itens: ['id', 'fvs_id', 'item_id', 'ordem', 'descricao', 'criterio', 'resultado', 'observacao'],
   Pendencias: ['id', 'fvs_id', 'fvs_item_id', 'apartamento', 'servico', 'fornecedor_nome', 'descricao', 'responsavel',
                'prazo', 'status', 'reinspecoes', 'reinspecao_data', 'reinspecao_obs', 'criado_em', 'resolvido_em', 'resolvido_por'],
-  Fotos: ['id', 'fvs_id', 'fvs_item_id', 'pendencia_id', 'tipo', 'drive_id', 'criado_em', 'criado_por'],
+  Fotos: ['id', 'fvs_id', 'fvs_item_id', 'pendencia_id', 'tipo', 'drive_id', 'criado_em', 'criado_por', 'registro_id'],
+  Disciplinas: ['id', 'nome', 'ativo'],
+  PontosAndamento: ['id', 'disciplina_id', 'ordem', 'nome', 'descricao'],
+  Registros: ['id', 'apartamento', 'disciplina_id', 'disciplina_nome', 'ponto_id', 'ponto_nome', 'ambiente', 'legenda',
+              'capturado_em', 'criado_por', 'criado_em'],
+  Usuarios: ['id', 'nome', 'perfil', 'disciplinas', 'ativo'],
   Log: ['data', 'usuario', 'acao', 'ref', 'detalhe'],
   Auditoria_Excluidos: ['data', 'usuario', 'aba', 'id', 'linha_json']
 };
@@ -220,13 +231,35 @@ function configurarSenhas() {
                            : 'Nenhuma senha preenchida. Digite as senhas em SENHAS, rode de novo e depois apague.');
 }
 
+function definirSenha_(nome, senha) {
+  const sal = Utilities.getUuid();
+  props_().setProperty('SENHA_' + nome, sal + ':' + hashSenha_(senha, sal));
+}
+
+/** Perfil e restrições do usuário. null se não existir ou estiver arquivado. */
+function infoUsuario_(nome) {
+  if (nome === ADMIN) return { nome: nome, perfil: 'admin', disciplinas: [] };
+  if (USUARIOS.indexOf(nome) >= 0) return { nome: nome, perfil: 'completo', disciplinas: [] };
+  const r = lerAba_('Usuarios').filter(function (x) { return x.nome === nome && x.ativo !== 'nao'; })[0];
+  if (!r) return null;
+  return { nome: nome, perfil: 'encarregado', disciplinas: String(r.disciplinas || '').split(',').filter(Boolean) };
+}
+
+/** Lista pública de nomes para a tela de login (só nomes, nada mais). */
+function listarUsuarios_() {
+  const nomes = USUARIOS.slice();
+  lerAba_('Usuarios').forEach(function (x) { if (x.ativo !== 'nao' && x.nome) nomes.push(x.nome); });
+  return { ok: true, usuarios: nomes };
+}
+
 function login_(req) {
-  const u = String(req.usuario || '');
-  if (USUARIOS.indexOf(u) < 0) return erro_('Usuário inválido.');
+  const u = String(req.usuario || '').trim();
+  const info = u ? infoUsuario_(u) : null;
+  if (!info) return erro_('Usuário inválido.');
   const cache = CacheService.getScriptCache();
   if (cache.get('BLOQ_' + u)) return erro_('Muitas tentativas. Aguarde 10 minutos.');
   const reg = props_().getProperty('SENHA_' + u);
-  if (!reg) return erro_('Senha ainda não configurada. Rode configurarSenhas() no Apps Script.');
+  if (!reg) return erro_(info.perfil === 'encarregado' ? 'Senha não definida. Peça para a Bárbara redefinir.' : 'Senha ainda não configurada. Rode configurarSenhas() no Apps Script.');
   const partes = reg.split(':');
   if (hashSenha_(String(req.senha || ''), partes[0]) !== partes[1]) {
     const n = Number(cache.get('ERR_' + u) || 0) + 1;
@@ -239,7 +272,7 @@ function login_(req) {
   const token = Utilities.getUuid() + Utilities.getUuid();
   cache.put('TK_' + token, u, SESSAO_SEGUNDOS);
   registrarLog_(u, 'login', '', '');
-  return { ok: true, token: token, usuario: u, admin: u === ADMIN };
+  return { ok: true, token: token, usuario: u, perfil: info.perfil, admin: info.perfil === 'admin', disciplinas: info.disciplinas };
 }
 
 function sessao_(token) {
@@ -277,7 +310,41 @@ function setup() {
   pastaFotos_();
   pasta_(PASTA_BACKUP);
   semear_();
-  Logger.log('Setup concluído. Abas, pastas do Drive e modelos de exemplo prontos. Próximo passo: configurarSenhas().');
+  semearAndamento_();
+  Logger.log('Setup concluído. Abas, pastas do Drive e exemplos prontos. Se for a primeira vez, o próximo passo é configurarSenhas().');
+}
+
+function semearAndamento_() {
+  if (lerAba_('Disciplinas').length) return;
+  const base = [
+    ['Hidráulica', [
+      ['Shaft aberto — prumadas', 'Caminho das prumadas antes de fechar o shaft'],
+      ['Ramais de água fria e quente', 'Trajeto das tubulações antes de fechar parede ou piso'],
+      ['Nicho do box — ponto e caminho', 'Posição do ponto e caminho da tubulação até o nicho'],
+      ['Pontos de água na parede', 'Alturas e posições dos pontos antes do revestimento'],
+      ['Esgoto e ralos', 'Ralos, caixas sifonadas e caimentos'],
+      ['Teste de pressão', 'Registro do teste com manômetro']
+    ]],
+    ['Elétrica', [
+      ['Eletrodutos na laje', 'Trajeto dos eletrodutos antes da concretagem ou contrapiso'],
+      ['Eletrodutos nas paredes', 'Caminhos e caixas antes de fechar a alvenaria'],
+      ['Pontos de tomada e interruptor', 'Posição e altura das caixas'],
+      ['Quadro de distribuição', 'Quadro aberto, circuitos e identificação'],
+      ['Passagem de cabos', 'Fiação nos eletrodutos e identificação dos circuitos']
+    ]],
+    ['Ar-condicionado', [
+      ['Tubulação frigorígena', 'Trajeto das linhas de cobre e do dreno'],
+      ['Pontos de dreno', 'Posição e caimento do dreno'],
+      ['Infraestrutura elétrica da máquina', 'Ponto de força e comando']
+    ]]
+  ];
+  base.forEach(function (d) {
+    const id = novoId_();
+    inserir_('Disciplinas', { id: id, nome: d[0], ativo: 'sim' });
+    d[1].forEach(function (p, i) {
+      inserir_('PontosAndamento', { id: novoId_(), disciplina_id: id, ordem: String(i + 1), nome: p[0], descricao: p[1] });
+    });
+  });
 }
 
 function semear_() {
@@ -341,13 +408,29 @@ function semear_() {
 /* Ações                                                               */
 /* ------------------------------------------------------------------ */
 
-function bootstrap_(req, u) {
+function bootstrap_(req, u, info) {
   const out = function (nome) { return lerAba_(nome).map(limpar_); };
-  return {
-    ok: true, usuario: u, admin: u === ADMIN,
+  const base = { ok: true, usuario: u, perfil: info.perfil, admin: info.perfil === 'admin', restricao: info.disciplinas };
+  let disc = out('Disciplinas');
+  let pontos = out('PontosAndamento');
+  if (info.perfil === 'encarregado') {
+    // Encarregado só enxerga o necessário para registrar fotos
+    if (info.disciplinas.length) {
+      disc = disc.filter(function (d) { return info.disciplinas.indexOf(d.id) >= 0; });
+      pontos = pontos.filter(function (p) { return info.disciplinas.indexOf(p.disciplina_id) >= 0; });
+    }
+    disc = disc.filter(function (d) { return d.ativo !== 'nao'; });
+    return Object.assign(base, {
+      apartamentos: out('Apartamentos').filter(function (a) { return a.ativo !== 'nao'; }),
+      disciplinas: disc, pontos: pontos
+    });
+  }
+  return Object.assign(base, {
     modelos: out('Modelos'), itens: out('ModeloItens'), fornecedores: out('Fornecedores'),
-    apartamentos: out('Apartamentos'), fvs: out('FVS'), pendencias: out('Pendencias')
-  };
+    apartamentos: out('Apartamentos'), fvs: out('FVS'), pendencias: out('Pendencias'),
+    disciplinas: disc, pontos: pontos,
+    usuarios: info.perfil === 'admin' ? out('Usuarios') : []
+  });
 }
 
 function getFVS_(req) {
@@ -387,7 +470,8 @@ function salvarModelo_(req, u) {
 
 function alterarAtivo_(req, u) {
   const aba = String(req.aba || '');
-  if (['Modelos', 'Fornecedores', 'Apartamentos'].indexOf(aba) < 0) throw new Error('Aba inválida.');
+  if (['Modelos', 'Fornecedores', 'Apartamentos', 'Disciplinas', 'Usuarios'].indexOf(aba) < 0) throw new Error('Aba inválida.');
+  if (aba === 'Usuarios') exigirAdmin_(u);
   const ativo = req.ativo ? 'sim' : 'nao';
   atualizar_(aba, String(req.id || ''), { ativo: ativo });
   registrarLog_(u, ativo === 'sim' ? 'reativado' : 'arquivado', String(req.id), aba);
@@ -539,32 +623,68 @@ function reinspecionar_(req, u) {
   return { ok: true, status: status };
 }
 
-function uploadFoto_(req, u) {
+function uploadFoto_(req, u, info) {
   const id = req.id;
   if (!idValido_(id)) throw new Error('Identificador da foto inválido.');
-  if (achar_('Fotos', id)) return { ok: true, id: id, repetida: true }; // reenvio seguro
-  const tipos = ['item', 'assinatura', 'reinspecao'];
+  const tipos = ['item', 'assinatura', 'reinspecao', 'andamento'];
   if (tipos.indexOf(req.tipo) < 0) throw new Error('Tipo de foto inválido.');
-  const fvsId = String(req.fvs_id || '');
-  if (!achar_('FVS', fvsId)) throw new Error('FVS não encontrada para a foto.');
+  if (info.perfil === 'encarregado' && req.tipo !== 'andamento') throw new Error('Acesso restrito.');
+  if (achar_('Fotos', id)) return { ok: true, id: id, repetida: true }; // reenvio seguro
+  let fvsId = '';
+  let registroId = '';
+  if (req.tipo === 'andamento') {
+    registroId = String(req.registro_id || '');
+    const reg = lerAba_('Registros').filter(function (x) { return x.id === registroId; })[0];
+    if (!reg) throw new Error('Registro não encontrado para a foto.');
+    if (info.perfil === 'encarregado' && reg.criado_por !== u) throw new Error('Acesso restrito.');
+    const qtd = lerAba_('Fotos').filter(function (x) { return x.registro_id === registroId; }).length;
+    if (qtd >= MAX_FOTOS_REGISTRO) throw new Error('Limite de ' + MAX_FOTOS_REGISTRO + ' fotos por registro.');
+  } else {
+    fvsId = String(req.fvs_id || '');
+    if (!achar_('FVS', fvsId)) throw new Error('FVS não encontrada para a foto.');
+  }
   const m = /^data:(image\/(?:jpeg|png));base64,([A-Za-z0-9+\/=]+)$/.exec(String(req.dataUrl || ''));
   if (!m) throw new Error('Imagem inválida.');
   const bytes = Utilities.base64Decode(m[2]);
   if (bytes.length > MAX_FOTO_BYTES) throw new Error('Imagem muito grande.');
   const ext = m[1] === 'image/png' ? '.png' : '.jpg';
-  const arquivo = pastaFotos_().createFile(Utilities.newBlob(bytes, m[1], 'fvs_' + id + ext));
+  const arquivo = pastaFotos_().createFile(Utilities.newBlob(bytes, m[1], (registroId ? 'andamento_' : 'fvs_') + id + ext));
   inserir_('Fotos', {
     id: id, fvs_id: fvsId, fvs_item_id: texto_(req.fvs_item_id, 64), pendencia_id: texto_(req.pendencia_id, 64),
-    tipo: req.tipo, drive_id: arquivo.getId(), criado_em: agora_(), criado_por: u
+    tipo: req.tipo, drive_id: arquivo.getId(), criado_em: agora_(), criado_por: u, registro_id: registroId
   });
   return { ok: true, id: id };
 }
 
-function getFoto_(req) {
-  const foto = lerAba_('Fotos').filter(function (x) { return x.id === String(req.id || ''); })[0];
-  if (!foto) throw new Error('Foto não encontrada.');
+/** Encarregado só lê fotos de andamento que ele mesmo registrou. */
+function podeVerFoto_(foto, u, info) {
+  if (info.perfil !== 'encarregado') return true;
+  if (foto.tipo !== 'andamento') return false;
+  return foto.criado_por === u;
+}
+
+function dataUrlDaFoto_(foto) {
   const blob = DriveApp.getFileById(foto.drive_id).getBlob();
-  return { ok: true, id: foto.id, dataUrl: 'data:' + blob.getContentType() + ';base64,' + Utilities.base64Encode(blob.getBytes()) };
+  return 'data:' + blob.getContentType() + ';base64,' + Utilities.base64Encode(blob.getBytes());
+}
+
+function getFoto_(req, u, info) {
+  const foto = lerAba_('Fotos').filter(function (x) { return x.id === String(req.id || ''); })[0];
+  if (!foto || !podeVerFoto_(foto, u, info)) throw new Error('Foto não encontrada.');
+  return { ok: true, id: foto.id, dataUrl: dataUrlDaFoto_(foto) };
+}
+
+/** Várias fotos numa chamada só (máx. 6), para carregar galerias mais rápido. */
+function getFotos_(req, u, info) {
+  const ids = (req.ids || []).slice(0, 6).map(String);
+  const todas = lerAba_('Fotos');
+  const fotos = {}; const falhas = [];
+  ids.forEach(function (id) {
+    const foto = todas.filter(function (x) { return x.id === id; })[0];
+    if (!foto || !podeVerFoto_(foto, u, info)) { falhas.push(id); return; }
+    try { fotos[id] = dataUrlDaFoto_(foto); } catch (e) { falhas.push(id); }
+  });
+  return { ok: true, fotos: fotos, falhas: falhas };
 }
 
 function excluirFoto_(req, u) {
@@ -600,6 +720,121 @@ function excluirFVS_(req, u) {
   return { ok: true };
 }
 
+/* ------------------------------------------------------------------ */
+/* Andamento: disciplinas, pontos e registros de fotos                  */
+/* ------------------------------------------------------------------ */
+
+function salvarDisciplina_(req, u) {
+  const d = req.disciplina || {};
+  const nome = texto_(d.nome, 80).trim();
+  if (!nome) throw new Error('Informe o nome da disciplina.');
+  const pontos = (req.pontos || []).filter(function (p) { return texto_(p.nome, 120).trim(); });
+  if (!pontos.length) throw new Error('Inclua ao menos um ponto com nome.');
+  const id = idValido_(d.id) ? d.id : novoId_();
+  const existe = achar_('Disciplinas', id);
+  if (existe) atualizar_('Disciplinas', id, { nome: nome });
+  else inserir_('Disciplinas', { id: id, nome: nome, ativo: 'sim' });
+  const outros = lerAba_('PontosAndamento').filter(function (x) { return x.disciplina_id !== id; }).map(limpar_);
+  const novos = pontos.map(function (p, i) {
+    return { id: idValido_(p.id) ? p.id : novoId_(), disciplina_id: id, ordem: String(i + 1), nome: texto_(p.nome, 120).trim(), descricao: texto_(p.descricao, 300).trim() };
+  });
+  reescrever_('PontosAndamento', outros.concat(novos));
+  registrarLog_(u, existe ? 'disciplina_editada' : 'disciplina_criada', id, nome + ' · ' + novos.length + ' pontos');
+  return { ok: true, id: id };
+}
+
+const FORMATO_CAPTURA = /^\d{4}-\d{2}-\d{2} \d{2}:\d{2}:\d{2}$/;
+
+function salvarRegistro_(req, u, info) {
+  const r = req.registro || {};
+  if (!idValido_(r.id)) throw new Error('Identificador do registro inválido.');
+  const existente = lerAba_('Registros').filter(function (x) { return x.id === r.id; })[0];
+  if (existente) { // reenvio da fila: não duplica
+    if (info.perfil === 'encarregado' && existente.criado_por !== u) throw new Error('Acesso restrito.');
+    return { ok: true, id: r.id, repetido: true };
+  }
+  const apto = texto_(r.apartamento, 60).trim();
+  if (!apto) throw new Error('Informe o apartamento.');
+  const disc = lerAba_('Disciplinas').filter(function (x) { return x.id === r.disciplina_id; })[0];
+  if (!disc) throw new Error('Disciplina não encontrada.');
+  if (info.perfil === 'encarregado' && info.disciplinas.length && info.disciplinas.indexOf(disc.id) < 0) {
+    throw new Error('Você não tem acesso a esta disciplina.');
+  }
+  let pontoId = ''; let pontoNome = '';
+  const legenda = texto_(r.legenda, 1000).trim();
+  if (r.ponto_id) {
+    const p = lerAba_('PontosAndamento').filter(function (x) { return x.id === r.ponto_id && x.disciplina_id === disc.id; })[0];
+    if (!p) throw new Error('Ponto não encontrado nesta disciplina.');
+    pontoId = p.id; pontoNome = p.nome;
+  } else {
+    pontoNome = texto_(r.ponto_nome, 120).trim();
+    if (!pontoNome) throw new Error('Informe o ponto.');
+    if (!legenda) throw new Error('Para um ponto fora da lista, descreva na legenda.');
+  }
+  const captura = FORMATO_CAPTURA.test(String(r.capturado_em || '')) ? r.capturado_em : agora_();
+  inserir_('Registros', {
+    id: r.id, apartamento: apto, disciplina_id: disc.id, disciplina_nome: disc.nome, ponto_id: pontoId, ponto_nome: pontoNome,
+    ambiente: texto_(r.ambiente, 80).trim(), legenda: legenda, capturado_em: captura, criado_por: u, criado_em: agora_()
+  });
+  registrarLog_(u, 'registro_criado', r.id, 'apto ' + apto + ' · ' + disc.nome + ' · ' + pontoNome);
+  return { ok: true, id: r.id };
+}
+
+function getAndamento_(req, u, info) {
+  let regs = lerAba_('Registros').map(limpar_);
+  if (info.perfil === 'encarregado') regs = regs.filter(function (x) { return x.criado_por === u; });
+  const ids = {};
+  regs.forEach(function (r) { ids[r.id] = true; });
+  const fotos = lerAba_('Fotos').filter(function (f) { return f.tipo === 'andamento' && ids[f.registro_id]; })
+    .map(function (f) { return { id: f.id, registro_id: f.registro_id, criado_em: f.criado_em }; });
+  return { ok: true, registros: regs, fotos: fotos };
+}
+
+function excluirRegistro_(req, u) {
+  exigirAdmin_(u);
+  const id = String(req.id || '');
+  const r = lerAba_('Registros').filter(function (x) { return x.id === id; })[0];
+  if (!r) throw new Error('Registro não encontrado.');
+  backupAntes_();
+  removerLinhas_('Fotos', 'registro_id', id, u);
+  removerLinhas_('Registros', 'id', id, u);
+  registrarLog_(u, 'registro_excluido', id, 'apto ' + r.apartamento + ' · ' + r.disciplina_nome + ' · ' + r.ponto_nome);
+  return { ok: true };
+}
+
+/* ------------------------------------------------------------------ */
+/* Usuários encarregados (só a Bárbara)                                */
+/* ------------------------------------------------------------------ */
+
+function salvarUsuario_(req, u) {
+  exigirAdmin_(u);
+  const d = req.usuario || {};
+  const todos = lerAba_('Usuarios');
+  const existente = idValido_(d.id) ? todos.filter(function (x) { return x.id === d.id; })[0] : null;
+  const nome = existente ? existente.nome : texto_(d.nome, 60).trim(); // o nome não muda: os registros ficam ligados a ele
+  if (nome.length < 2) throw new Error('Informe o nome do encarregado.');
+  const lower = nome.toLowerCase();
+  if (!existente) {
+    if (USUARIOS.some(function (x) { return x.toLowerCase() === lower; })) throw new Error('Este nome é reservado.');
+    if (todos.some(function (x) { return String(x.nome).toLowerCase() === lower; })) throw new Error('Já existe um usuário com esse nome.');
+  }
+  const disciplinas = (d.disciplinas || []).map(String).filter(idValido_);
+  const senha = String(d.senha || '');
+  if (!existente && senha.length < 6) throw new Error('A senha precisa ter ao menos 6 caracteres.');
+  if (senha && senha.length < 6) throw new Error('A senha precisa ter ao menos 6 caracteres.');
+  let id;
+  if (existente) {
+    id = existente.id;
+    atualizar_('Usuarios', id, { disciplinas: disciplinas.join(',') });
+  } else {
+    id = novoId_();
+    inserir_('Usuarios', { id: id, nome: nome, perfil: 'encarregado', disciplinas: disciplinas.join(','), ativo: 'sim' });
+  }
+  if (senha) definirSenha_(nome, senha);
+  registrarLog_(u, existente ? (senha ? 'usuario_editado_senha_redefinida' : 'usuario_editado') : 'usuario_criado', id, nome);
+  return { ok: true, id: id };
+}
+
 function getLog_(req, u) {
   exigirAdmin_(u);
   return { ok: true, log: lerAba_('Log').map(limpar_).reverse().slice(0, 500) };
@@ -611,13 +846,38 @@ function getExcluidos_(req, u) {
   return { ok: true, excluidos: lista };
 }
 
+/**
+ * Cada ação: [função, quem pode, é só leitura?]
+ * Quem pode: 'T' = todos os perfis (inclui encarregado) · 'AC' = admin e completo · 'A' = só admin.
+ */
 const ACOES = {
-  bootstrap: bootstrap_, getFVS: getFVS_, getFoto: getFoto_, getLog: getLog_, getExcluidos: getExcluidos_,
-  salvarModelo: salvarModelo_, alterarAtivo: alterarAtivo_, salvarFornecedor: salvarFornecedor_,
-  salvarApartamentos: salvarApartamentos_, salvarFVS: salvarFVS_, reinspecionar: reinspecionar_,
-  uploadFoto: uploadFoto_, excluirFoto: excluirFoto_, excluirFVS: excluirFVS_
+  bootstrap: [bootstrap_, 'T', true],
+  getFoto: [getFoto_, 'T', true],
+  getFotos: [getFotos_, 'T', true],
+  getAndamento: [getAndamento_, 'T', true],
+  salvarRegistro: [salvarRegistro_, 'T', false],
+  uploadFoto: [uploadFoto_, 'T', false],
+  getFVS: [getFVS_, 'AC', true],
+  salvarModelo: [salvarModelo_, 'AC', false],
+  alterarAtivo: [alterarAtivo_, 'AC', false],
+  salvarFornecedor: [salvarFornecedor_, 'AC', false],
+  salvarApartamentos: [salvarApartamentos_, 'AC', false],
+  salvarDisciplina: [salvarDisciplina_, 'AC', false],
+  salvarFVS: [salvarFVS_, 'AC', false],
+  reinspecionar: [reinspecionar_, 'AC', false],
+  excluirFoto: [excluirFoto_, 'AC', false],
+  excluirFVS: [excluirFVS_, 'A', false],
+  excluirRegistro: [excluirRegistro_, 'A', false],
+  salvarUsuario: [salvarUsuario_, 'A', false],
+  getLog: [getLog_, 'A', true],
+  getExcluidos: [getExcluidos_, 'A', true]
 };
-const ACOES_LEITURA = { bootstrap: 1, getFVS: 1, getFoto: 1, getLog: 1, getExcluidos: 1 };
+
+function perfilPermitido_(regra, perfil) {
+  if (regra === 'T') return true;
+  if (regra === 'AC') return perfil === 'admin' || perfil === 'completo';
+  return perfil === 'admin';
+}
 
 /* ------------------------------------------------------------------ */
 /* Ponto de entrada                                                    */
@@ -631,14 +891,21 @@ function doPost(e) {
   catch (err) { return json_(erro_('Requisição inválida.')); }
   try {
     if (req.action === 'ping') return json_({ ok: true, versao: VERSAO });
+    if (req.action === 'listarUsuarios') return json_(listarUsuarios_());
     if (req.action === 'login') return json_(login_(req));
     const usuario = sessao_(req.token);
-    if (!usuario) return json_({ ok: false, sessao: false, erro: 'Sessão expirada. Entre novamente.' });
+    const info = usuario ? infoUsuario_(usuario) : null; // usuário arquivado perde o acesso na hora
+    if (!info) return json_({ ok: false, sessao: false, erro: 'Sessão expirada. Entre novamente.' });
     const acao = ACOES[req.action];
     if (!acao) return json_(erro_('Ação desconhecida.'));
+    if (!perfilPermitido_(acao[1], info.perfil)) return json_(erro_('Acesso restrito.'));
     let lock = null;
-    if (!ACOES_LEITURA[req.action]) { lock = LockService.getScriptLock(); lock.waitLock(30000); }
-    try { return json_(acao(req, usuario)); }
+    if (!acao[2]) {
+      lock = LockService.getScriptLock();
+      try { lock.waitLock(30000); }
+      catch (errLock) { return json_({ ok: false, ocupado: true, erro: 'Servidor ocupado. Tente de novo em instantes.' }); }
+    }
+    try { return json_(acao[0](req, usuario, info)); }
     finally { if (lock) lock.releaseLock(); }
   } catch (err) {
     console.error(err);

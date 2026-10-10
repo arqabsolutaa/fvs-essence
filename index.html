@@ -143,6 +143,30 @@ canvas#sig{width:100%;height:170px;background:#fff;border:2px dashed var(--doura
 .toast.erro{background:var(--nc)}
 .lb-img{width:100%;max-height:75vh;object-fit:contain;background:#000;border-radius:8px}
 .nota{font-size:13px;color:var(--suave)}
+
+/* Andamento */
+.pill-fila{background:var(--alerta);border:none!important;color:#fff!important;border-radius:99px!important;font-weight:700;font-size:13px;padding:6px 12px!important}
+.pill-fila.erro{background:var(--nc)}
+.faixa{background:var(--alerta-claro);color:#6b5217;border-bottom:1px solid #e3d3a2;padding:9px 16px;font-size:14px;display:flex;gap:12px;align-items:center;justify-content:space-between;flex-wrap:wrap}
+.faixa button{border:1px solid #6b5217;background:transparent;color:#6b5217;border-radius:8px;padding:5px 10px}
+.rev{display:inline-block;background:var(--marrom);color:#fff;border-radius:6px;padding:2px 8px;font-size:12px;font-weight:700;margin-right:6px}
+.grupo-t{font-weight:700;color:var(--marrom);margin:16px 0 6px;font-size:16px}
+.grupo-s{font-weight:700;color:var(--dourado);margin:10px 0 6px;font-size:13px;text-transform:uppercase;letter-spacing:.06em}
+.reg-leg{margin:6px 0 0;white-space:pre-wrap}
+.th.g{width:96px;height:96px}
+.hint-rev{background:var(--oliva-claro);color:var(--oliva);border-radius:8px;padding:8px 12px;font-size:14px;font-weight:600;margin-bottom:12px}
+.hint-rev:empty{display:none}
+.cob td,.cob th{text-align:center;padding:6px 4px;border:1px solid var(--linha);font-size:13px}
+.cob th{background:var(--marrom);color:#fff;font-size:11px;font-weight:600;vertical-align:bottom;min-width:64px}
+.cob td:first-child,.cob th:first-child{position:sticky;left:0;z-index:1;text-align:left;font-weight:700;background:#fff;min-width:78px}
+.cob th:first-child{background:var(--marrom)}
+.cob td.f{background:var(--oliva-claro);color:var(--oliva);font-weight:700;cursor:pointer}
+.cob td.v{background:#fff;color:#c9c2ae}
+.cob td.t{font-weight:700;background:var(--fundo)}
+.cob td.t.cheio{color:var(--oliva)}
+.checks{display:flex;flex-direction:column;gap:8px}
+.checks label{display:flex;gap:10px;align-items:center;font-weight:600;padding:8px 10px;background:#fff;border:1px solid var(--linha);border-radius:9px}
+.checks input{width:20px;height:20px;min-height:0}
 </style>
 </head>
 <body>
@@ -154,6 +178,7 @@ canvas#sig{width:100%;height:170px;background:#fff;border:2px dashed var(--doura
     <p>Ficha de Verificação de Serviço</p>
     <label for="lg-user">Usuário</label>
     <select id="lg-user"><option>Bárbara</option><option>Gabriel</option></select>
+    <div class="nota" id="lg-nota" hidden>Sem internet: não é possível entrar agora.</div>
     <label for="lg-senha">Senha</label>
     <input id="lg-senha" type="password" autocomplete="current-password" required>
     <div id="lg-erro" class="erro" hidden></div>
@@ -164,9 +189,10 @@ canvas#sig{width:100%;height:170px;background:#fff;border:2px dashed var(--doura
 <div id="app" hidden>
   <div id="topo">
     <div><div class="t1">FVS · Essence Residence</div><div class="t2">ABSOLUTA CONSTRUTORA</div></div>
-    <div class="quem"><span id="quem"></span><button type="button" onclick="sair(false)">Sair</button></div>
+    <div class="quem"><button type="button" id="fila-pill" class="pill-fila" hidden onclick="abrirFila()"></button><span id="quem"></span><button type="button" onclick="sair(false)">Sair</button></div>
   </div>
   <nav id="menu"></nav>
+  <div id="faixa" class="faixa" hidden></div>
   <main id="view"></main>
 </div>
 
@@ -182,15 +208,20 @@ canvas#sig{width:100%;height:170px;background:#fff;border:2px dashed var(--doura
 /* ================================================================== */
 const API_URL = 'COLE_AQUI_A_URL_DO_APPS_SCRIPT';
 
+const DADOS_VAZIOS = () => ({ modelos: [], itens: [], fornecedores: [], apartamentos: [], fvs: [], pendencias: [], disciplinas: [], pontos: [], usuarios: [] });
 const S = {
-  token: null, usuario: null, admin: false, aba: 'fvs',
-  d: { modelos: [], itens: [], fornecedores: [], apartamentos: [], fvs: [], pendencias: [] },
+  token: null, usuario: null, perfil: null, admin: false, restricao: [], aba: 'fvs', sub: 'registrar', offline: false,
+  d: DADOS_VAZIOS(),
+  and: null, andCarregando: false, filaCache: [],
   filtros: {
     fvs: { status: '', apto: '', modelo: '', forn: '', q: '' },
-    pend: { status: 'abertas', apto: '', forn: '' }
+    pend: { status: 'abertas', apto: '', forn: '' },
+    reg: { apto: '', disc: '', ponto: '' },
+    cob: { disc: '' }
   },
   hist: { aba: 'log', log: null, excl: null }
 };
+const ehEnc = () => S.perfil === 'encarregado';
 
 /* ================================================================== */
 /* Utilidades                                                          */
@@ -271,9 +302,13 @@ async function api(action, params, tentativas) {
       const r = await fetch(API_URL, { method: 'POST', body: JSON.stringify(Object.assign({ action: action, token: S.token }, params || {})) });
       const j = await r.json();
       if (!j.ok) {
-        if (j.sessao === false) sair(true);
-        const e = new Error(j.erro || 'Erro no servidor'); e.servidor = true; throw e;
+        const e = new Error(j.erro || 'Erro no servidor');
+        e.servidor = !j.ocupado; // "servidor ocupado" é temporário e tenta de novo
+        if (j.ocupado) e.ocupado = true;
+        if (j.sessao === false) { e.sessao = true; sair(true); }
+        throw e;
       }
+      if (S.offline) { S.offline = false; renderFaixa(); }
       return j;
     } catch (e) {
       ultimo = e;
@@ -281,7 +316,9 @@ async function api(action, params, tentativas) {
       if (i < tentativas) await new Promise(r => setTimeout(r, 1200));
     }
   }
-  throw new Error('Sem conexão com o servidor. Verifique a internet e tente de novo.');
+  if (ultimo && ultimo.ocupado) throw ultimo;
+  if (!S.offline && S.token) { S.offline = true; renderFaixa(); }
+  const sem = new Error('Sem conexão com o servidor. Verifique a internet e tente de novo.'); sem.rede = true; throw sem;
 }
 
 async function entrar(ev) {
@@ -290,8 +327,8 @@ async function entrar(ev) {
   er.hidden = true; btn.disabled = true; btn.textContent = 'Entrando…';
   try {
     const j = await api('login', { usuario: $('#lg-user').value, senha: $('#lg-senha').value }, 0);
-    S.token = j.token; S.usuario = j.usuario; S.admin = j.admin;
-    ls.set('fvs_sessao', JSON.stringify({ token: j.token, usuario: j.usuario, admin: j.admin }));
+    S.token = j.token; S.usuario = j.usuario; S.admin = j.admin; S.perfil = j.perfil;
+    ls.set('fvs_sessao', JSON.stringify({ token: j.token, usuario: j.usuario, admin: j.admin, perfil: j.perfil }));
     $('#lg-senha').value = '';
     await iniciar();
   } catch (e) {
@@ -301,47 +338,99 @@ async function entrar(ev) {
   }
 }
 
+/** Lista de nomes da tela de login (guardada no aparelho para funcionar mesmo sem sinal). */
+async function popularUsuarios() {
+  const sel = $('#lg-user');
+  const desenhar = nomes => { const atual = sel.value; sel.innerHTML = nomes.map(n => '<option>' + h(n) + '</option>').join(''); if (nomes.indexOf(atual) >= 0) sel.value = atual; };
+  const cache = ls.get('fvs_usuarios');
+  if (cache) { try { desenhar(JSON.parse(cache)); } catch (e) { ls.del('fvs_usuarios'); } }
+  try {
+    const j = await api('listarUsuarios', {}, 0);
+    desenhar(j.usuarios); ls.set('fvs_usuarios', JSON.stringify(j.usuarios));
+  } catch (e) { /* mantém a lista guardada */ }
+}
+
 function sair(expirou) {
   S.token = null;
   ls.del('fvs_sessao');
   $('#login').hidden = false;
+  popularUsuarios();
   if (expirou) { const er = $('#lg-erro'); er.textContent = 'Sessão expirada. Entre novamente.'; er.hidden = false; }
-  else { $('#app').hidden = true; S.usuario = null; S.admin = false; }
+  else {
+    // Saída voluntária: limpa os dados guardados no aparelho. A fila de envio é mantida.
+    if (S.usuario) ls.del('fvs_cache_' + S.usuario);
+    $('#app').hidden = true; S.usuario = null; S.admin = false; S.perfil = null; S.and = null; S.d = DADOS_VAZIOS();
+  }
 }
 
 async function iniciar() {
   $('#quem').textContent = S.usuario;
   $('#login').hidden = true;
   $('#app').hidden = false;
-  if (!S.admin && S.aba === 'hist') S.aba = 'fvs';
+  if (ehEnc()) { S.aba = 'and'; if (S.sub !== 'registrar' && S.sub !== 'registros') S.sub = 'registrar'; }
+  else if (!S.admin && S.aba === 'hist') S.aba = 'fvs';
+  restaurarEstadoRG();
   try { await carregar(); } catch (e) { toast(e.message, true); }
   render();
+  atualizarPill().then(() => processarFila());
 }
 
 async function carregar() {
-  const j = await api('bootstrap');
-  S.d = { modelos: j.modelos, itens: j.itens, fornecedores: j.fornecedores, apartamentos: j.apartamentos, fvs: j.fvs, pendencias: j.pendencias };
+  try {
+    const j = await api('bootstrap');
+    S.perfil = j.perfil; S.admin = j.admin; S.restricao = j.restricao || [];
+    S.d = Object.assign(DADOS_VAZIOS(), {
+      modelos: j.modelos, itens: j.itens, fornecedores: j.fornecedores, apartamentos: j.apartamentos, fvs: j.fvs, pendencias: j.pendencias,
+      disciplinas: j.disciplinas, pontos: j.pontos, usuarios: j.usuarios
+    });
+    // Remove campos ausentes (undefined) para não sobrescrever os vazios
+    Object.keys(S.d).forEach(k => { if (!Array.isArray(S.d[k])) S.d[k] = []; });
+    ls.set('fvs_cache_' + S.usuario, JSON.stringify(S.d));
+  } catch (e) {
+    if (e.servidor) throw e;
+    const c = ls.get('fvs_cache_' + S.usuario);
+    if (!c) throw e;
+    S.d = Object.assign(DADOS_VAZIOS(), JSON.parse(c));
+    S.offline = true; renderFaixa();
+  }
+}
+
+function renderFaixa() {
+  const el = $('#faixa'); if (!el) return;
+  el.hidden = !S.offline;
+  el.innerHTML = S.offline ? '<span>Sem conexão com o servidor. ' + (ehEnc() || S.perfil ? 'Você pode continuar registrando: as fotos ficam guardadas neste aparelho e sobem sozinhas quando a internet voltar.' : '') + '</span><button type="button" onclick="tentarReconectar()">Tentar de novo</button>' : '';
+}
+async function tentarReconectar() {
+  try { await carregar(); S.and = null; render(); processarFila(); if (!S.offline) toast('Conectado'); } catch (e) { toast(e.message, true); }
 }
 
 /* ================================================================== */
 /* Navegação                                                           */
 /* ================================================================== */
 function render() {
+  const enc = ehEnc();
   const abertas = S.d.pendencias.filter(p => p.status === 'Aberta').length;
-  const abas = [['fvs', 'FVS'], ['pend', 'Pendências'], ['modelos', 'Modelos'], ['cad', 'Cadastros']];
+  const abas = enc ? [] : [['fvs', 'FVS'], ['pend', 'Pendências'], ['and', 'Andamento'], ['modelos', 'Modelos'], ['cad', 'Cadastros']];
   if (S.admin) abas.push(['hist', 'Histórico']);
-  $('#menu').innerHTML = abas.map(a => '<button type="button" class="' + (S.aba === a[0] ? 'on' : '') + '" onclick="irPara(\'' + a[0] + '\')">' + a[1] +
+  const menu = $('#menu');
+  menu.hidden = enc;
+  menu.innerHTML = abas.map(a => '<button type="button" class="' + (S.aba === a[0] ? 'on' : '') + '" onclick="irPara(\'' + a[0] + '\')">' + a[1] +
     (a[0] === 'pend' && abertas ? '<span class="pill">' + abertas + '</span>' : '') + '</button>').join('');
+  if (enc) S.aba = 'and';
+  renderFaixa();
   const v = $('#view');
   if (S.aba === 'fvs') v.innerHTML = viewFVS();
   else if (S.aba === 'pend') v.innerHTML = viewPend();
+  else if (S.aba === 'and') v.innerHTML = viewAndamento();
   else if (S.aba === 'modelos') v.innerHTML = viewModelos();
   else if (S.aba === 'cad') v.innerHTML = viewCadastros();
   else if (S.aba === 'hist') { v.innerHTML = viewHist(); carregarHist(); }
+  if (S.aba === 'and') posAndamento();
+  hidratarFotos(v);
 }
 function irPara(a) { S.aba = a; render(); window.scrollTo(0, 0); }
 async function atualizar() {
-  try { await carregar(); render(); toast('Dados atualizados'); } catch (e) { toast(e.message, true); }
+  try { await carregar(); S.and = null; render(); toast('Dados atualizados'); } catch (e) { toast(e.message, true); }
 }
 
 function opcoes(lista, atual, vazio) {
@@ -412,22 +501,37 @@ function filtrarListaFVS() {
 /* Fotos                                                               */
 /* ================================================================== */
 const CF = {}; const CFP = {};
+let FQ = []; let fqTimer = null; let fqRodando = 0;
+/** Busca fotos do servidor em lotes de até 4, com no máximo 2 chamadas ao mesmo tempo. */
 function fotoDataUrl(id) {
   if (CF[id]) return Promise.resolve(CF[id]);
   if (CFP[id]) return CFP[id];
-  CFP[id] = api('getFoto', { id: id }).then(j => { CF[id] = j.dataUrl; delete CFP[id]; return j.dataUrl; }).catch(e => { delete CFP[id]; throw e; });
+  CFP[id] = new Promise((res, rej) => { FQ.push({ id: id, res: res, rej: rej }); agendarFQ(); });
   return CFP[id];
+}
+function agendarFQ() { if (!fqTimer) fqTimer = setTimeout(() => { fqTimer = null; despacharFQ(); }, 25); }
+function despacharFQ() {
+  while (FQ.length && fqRodando < 2) {
+    const lote = FQ.splice(0, 4); fqRodando++;
+    api('getFotos', { ids: lote.map(x => x.id) }).then(j => {
+      lote.forEach(x => {
+        delete CFP[x.id];
+        if (j.fotos[x.id]) { CF[x.id] = j.fotos[x.id]; x.res(j.fotos[x.id]); } else x.rej(new Error('Foto indisponível'));
+      });
+    }).catch(e => { lote.forEach(x => { delete CFP[x.id]; x.rej(e); }); })
+      .then(() => { fqRodando--; if (FQ.length) despacharFQ(); });
+  }
 }
 async function hidratarFotos(root) {
   const imgs = Array.from(root.querySelectorAll('img[data-foto]')).filter(i => !i.getAttribute('src'));
-  let k = 0;
-  async function worker() {
-    while (k < imgs.length) {
-      const im = imgs[k++];
-      try { im.src = await fotoDataUrl(im.dataset.foto); } catch (e) { im.alt = 'Falha ao carregar'; }
-    }
-  }
-  await Promise.all([worker(), worker(), worker()]);
+  await Promise.all(imgs.map(async im => {
+    try { im.src = await fotoDataUrl(im.dataset.foto); } catch (e) { im.alt = 'Falha ao carregar'; }
+  }));
+}
+/** Carrega várias fotos antes de montar um PDF; falhas individuais não interrompem. */
+async function prefetchFotos(ids, cb) {
+  let n = 0;
+  await Promise.all(ids.map(id => fotoDataUrl(id).catch(() => null).then(() => { n++; if (cb) cb(n, ids.length); })));
 }
 function comprimirImagem(file, max, q) {
   max = max || 1280; q = q || 0.78;
@@ -885,7 +989,7 @@ async function salvarModelo() {
   } catch (e) { btn.disabled = false; btn.textContent = 'Salvar modelo'; toast(e.message, true); }
 }
 async function alternarAtivo(aba, id) {
-  const lista = aba === 'Modelos' ? S.d.modelos : (aba === 'Fornecedores' ? S.d.fornecedores : S.d.apartamentos);
+  const lista = aba === 'Modelos' ? S.d.modelos : (aba === 'Fornecedores' ? S.d.fornecedores : (aba === 'Disciplinas' ? S.d.disciplinas : (aba === 'Usuarios' ? S.d.usuarios : S.d.apartamentos)));
   const x = lista.filter(i => i.id === id)[0]; if (!x) return;
   const antes = x.ativo; x.ativo = ativo(x) ? 'nao' : 'sim'; render();
   try { await api('alterarAtivo', { aba: aba, id: id, ativo: x.ativo === 'sim' }); }
@@ -895,7 +999,8 @@ async function alternarAtivo(aba, id) {
 /* ================================================================== */
 /* Cadastros                                                           */
 /* ================================================================== */
-function viewCadastros() {
+function viewCadastros() { return viewCadastrosBase() + viewDisciplinas() + (S.admin ? viewUsuarios() : ''); }
+function viewCadastrosBase() {
   const forns = S.d.fornecedores.slice().sort((a, b) => (ativo(b) - ativo(a)) || nat(a.nome, b.nome));
   const aptos = S.d.apartamentos.slice().sort((a, b) => nat(a.codigo, b.codigo));
   return '<div class="titulo-sec"><h2>Fornecedores</h2><button class="btn" type="button" onclick="abrirFornecedor()">+ Novo fornecedor</button></div>' +
@@ -964,6 +1069,366 @@ async function carregarHist() {
 }
 
 /* ================================================================== */
+/* Andamento — fila de envio guardada no aparelho (IndexedDB)          */
+/* ================================================================== */
+let _db = null; let filaMem = null; let filaRodando = false;
+function idb() {
+  if (_db) return _db;
+  _db = new Promise((res, rej) => {
+    if (!window.indexedDB) return rej(new Error('IndexedDB indisponível'));
+    const rq = indexedDB.open('fvs_essence', 1);
+    rq.onupgradeneeded = () => { rq.result.createObjectStore('fila', { keyPath: 'id' }); };
+    rq.onsuccess = () => res(rq.result);
+    rq.onerror = () => rej(rq.error || new Error('Falha ao abrir o armazenamento'));
+  });
+  return _db;
+}
+function idbOp(modo, fn) {
+  return idb().then(db => new Promise((res, rej) => {
+    const tx = db.transaction('fila', modo); const rq = fn(tx.objectStore('fila'));
+    tx.oncomplete = () => res(rq && rq.result); tx.onerror = () => rej(tx.error); tx.onabort = () => rej(tx.error);
+  }));
+}
+function usarFilaMemoria() {
+  if (!filaMem) { filaMem = []; toast('Este navegador não deixa guardar a fila no aparelho. Mantenha esta página aberta até os registros serem enviados.', true); }
+  return filaMem;
+}
+async function filaAll() {
+  if (filaMem) return filaMem.slice();
+  try { return (await idbOp('readonly', st => st.getAll())) || []; } catch (e) { return usarFilaMemoria().slice(); }
+}
+async function filaPut(it) {
+  if (filaMem) { const k = filaMem.findIndex(x => x.id === it.id); if (k >= 0) filaMem[k] = it; else filaMem.push(it); return; }
+  try { await idbOp('readwrite', st => st.put(it)); } catch (e) { usarFilaMemoria(); return filaPut(it); }
+}
+async function filaDel(id) {
+  if (filaMem) { filaMem = filaMem.filter(x => x.id !== id); return; }
+  try { await idbOp('readwrite', st => st.delete(id)); } catch (e) { usarFilaMemoria(); }
+}
+
+async function atualizarPill() {
+  const pill = $('#fila-pill'); if (!pill) return;
+  let itens = [];
+  try { itens = (await filaAll()).filter(i => i.usuario === S.usuario); } catch (e) { /* ignora */ }
+  S.filaCache = itens.map(i => i.registro);
+  const erros = itens.filter(i => i.erro).length;
+  pill.hidden = !itens.length;
+  pill.className = 'pill-fila' + (erros ? ' erro' : '');
+  pill.textContent = itens.length ? ('↑ ' + itens.length + ' na fila' + (erros ? ' · ' + erros + ' com erro' : '')) : '';
+}
+
+async function enviarItemFila(it) {
+  await api('salvarRegistro', { registro: it.registro }, 1); // repetir é seguro: o servidor reconhece o mesmo id
+  it.enviadas = it.enviadas || [];
+  for (const f of it.fotos) {
+    if (it.enviadas.indexOf(f.id) >= 0) continue;
+    await api('uploadFoto', { id: f.id, tipo: 'andamento', registro_id: it.registro.id, dataUrl: f.dataUrl }, 1);
+    it.enviadas.push(f.id); await filaPut(it);
+  }
+}
+
+async function processarFila() {
+  if (filaRodando || !S.token) return;
+  filaRodando = true; let enviados = 0;
+  try {
+    const itens = (await filaAll()).filter(i => i.usuario === S.usuario && !i.erro).sort((a, b) => a.criado - b.criado);
+    for (const it of itens) {
+      try { await enviarItemFila(it); await filaDel(it.id); enviados++; }
+      catch (e) {
+        if (e.servidor && !e.sessao) { it.erro = e.message; await filaPut(it); continue; } // problema do registro: não trava os outros
+        break; // sem internet, servidor ocupado ou sessão expirada: tenta de novo depois
+      }
+    }
+  } finally {
+    filaRodando = false;
+    await atualizarPill();
+    if (enviados) {
+      S.and = null; toast(enviados + ' registro(s) enviado(s)');
+      if (S.aba === 'and' && S.sub !== 'registrar') render(); else atualizarHintRev();
+    }
+  }
+}
+window.addEventListener('online', () => processarFila());
+setInterval(() => { if (S.token) processarFila(); }, 30000);
+
+async function abrirFila() {
+  const itens = (await filaAll()).filter(i => i.usuario === S.usuario).sort((a, b) => a.criado - b.criado);
+  const corpo = (itens.length ? itens.map(i => '<div class="card"><div class="linha-item"><div class="info"><b>Apto ' + h(i.registro.apartamento) + ' · ' + h(i.registro.ponto_nome) + '</b>' +
+    '<div class="sub">' + i.fotos.length + ' foto(s) · ' + h(fmtDataHora(i.registro.capturado_em)) + (i.erro ? ' · <span class="vencida">Não enviado: ' + h(i.erro) + '</span>' : ' · aguardando envio') + '</div></div>' +
+    '<div class="acoes">' + (i.erro ? '<button class="btn sec sm" type="button" onclick="filaRetentar(\'' + i.id + '\')">Tentar de novo</button>' : '') +
+    '<button class="btn perigo sm" type="button" onclick="filaDescartar(\'' + i.id + '\')">Descartar</button></div></div></div>').join('') : '<div class="vazio">Nada na fila.</div>') +
+    '<p class="nota">Os registros ficam guardados neste aparelho e são enviados sozinhos quando houver internet.</p>';
+  const el = abrirModal('Fila de envio', corpo, { rodape: '<button class="btn" type="button" id="fila-enviar">Enviar agora</button>' });
+  el.classList.add('m-fila');
+  $('#fila-enviar', el).onclick = async () => { const b = $('#fila-enviar', el); b.disabled = true; b.textContent = 'Enviando…'; await processarFila(); fecharModal(el); if ((await filaAll()).some(i => i.usuario === S.usuario)) abrirFila(); };
+}
+function fecharFilaModal() { const m = $('.m-fila'); if (m) fecharModal(m); }
+async function filaRetentar(id) {
+  const it = (await filaAll()).find(x => x.id === id); if (!it) return;
+  it.erro = null; await filaPut(it); fecharFilaModal(); await atualizarPill(); processarFila(); abrirFila();
+}
+async function filaDescartar(id) {
+  if (!(await confirmar('Descartar este registro e as fotos? Eles ainda não foram enviados e serão perdidos.', 'Descartar', true))) return;
+  await filaDel(id); fecharFilaModal(); await atualizarPill(); abrirFila();
+}
+
+/* ================================================================== */
+/* Andamento — telas                                                   */
+/* ================================================================== */
+const AMBIENTES = ['Banheiro 1', 'Banheiro 2', 'Lavabo', 'Cozinha', 'Área de serviço', 'Suíte', 'Sala', 'Varanda', 'Shaft', 'Circulação'];
+const RG = { apto: '', disc: '', ponto: '', outro: '', ambiente: '', legenda: '', fotos: [] };
+function restaurarEstadoRG() { try { const s = JSON.parse(ls.get('fvs_rg') || '{}'); RG.apto = s.apto || ''; RG.disc = s.disc || ''; RG.ambiente = s.ambiente || ''; } catch (e) { /* ignora */ } }
+function salvarEstadoRG() { ls.set('fvs_rg', JSON.stringify({ apto: RG.apto, disc: RG.disc, ambiente: RG.ambiente })); }
+function agoraLocal() { const d = new Date(); return hoje() + ' ' + pad(d.getHours()) + ':' + pad(d.getMinutes()) + ':' + pad(d.getSeconds()); }
+
+function viewAndamento() {
+  const subs = ehEnc() ? [['registrar', 'Registrar'], ['registros', 'Meus registros']] : [['registrar', 'Registrar'], ['registros', 'Registros'], ['cobertura', 'Cobertura']];
+  if (!subs.some(s => s[0] === S.sub)) S.sub = 'registrar';
+  const corpo = S.sub === 'registrar' ? viewRegistrar() : (S.sub === 'registros' ? viewRegistros() : viewCobertura());
+  return '<div class="abas-int">' + subs.map(s => '<button type="button" class="' + (S.sub === s[0] ? 'on' : '') + '" onclick="S.sub=\'' + s[0] + '\';render()">' + s[1] + '</button>').join('') + '</div>' + corpo;
+}
+function posAndamento() { if (S.sub === 'registrar') { if (!S.and) carregarAndamento(); else atualizarHintRev(); } }
+
+async function carregarAndamento() {
+  if (S.andCarregando) return;
+  S.andCarregando = true;
+  try { const j = await api('getAndamento'); S.and = { registros: j.registros, fotos: j.fotos }; }
+  catch (e) { toast(e.message, true); S.and = S.and || { registros: [], fotos: [] }; }
+  finally { S.andCarregando = false; }
+  if (S.aba === 'and') { if (S.sub === 'registrar') atualizarHintRev(); else render(); }
+}
+
+function chaveRev(r) { return [r.apartamento, r.ponto_id || ('o:' + String(r.ponto_nome || '').trim().toLowerCase()), String(r.ambiente || '').trim().toLowerCase()].join('|'); }
+/** Número da revisão de cada registro: ordem de captura entre os registros do mesmo apto + ponto + ambiente. */
+function revisoes(regs) {
+  const grupos = {};
+  regs.forEach(r => { const k = chaveRev(r); (grupos[k] = grupos[k] || []).push(r); });
+  const mapa = {};
+  Object.keys(grupos).forEach(k => grupos[k].sort((a, b) => (a.capturado_em + a.criado_em).localeCompare(b.capturado_em + b.criado_em)).forEach((r, i) => { mapa[r.id] = i + 1; }));
+  return mapa;
+}
+function fotosPorRegistro() {
+  const m = {};
+  (S.and ? S.and.fotos : []).forEach(f => { (m[f.registro_id] = m[f.registro_id] || []).push(f); });
+  Object.keys(m).forEach(k => m[k].sort((a, b) => String(a.criado_em).localeCompare(String(b.criado_em))));
+  return m;
+}
+
+/* ---- Registrar ---- */
+function viewRegistrar() {
+  const aptos = S.d.apartamentos.filter(ativo).sort((a, b) => nat(a.codigo, b.codigo));
+  const discs = S.d.disciplinas.filter(ativo).sort((a, b) => nat(a.nome, b.nome));
+  if (!aptos.length || !discs.length) return '<div class="vazio">' + (ehEnc() ? 'Peça para a Bárbara cadastrar os apartamentos e as disciplinas.' : 'Cadastre os apartamentos e as disciplinas em Cadastros.') + '</div>';
+  if (RG.apto && !aptos.some(a => a.codigo === RG.apto)) RG.apto = '';
+  if (RG.disc && !discs.some(d => d.id === RG.disc)) RG.disc = '';
+  if (!RG.disc && discs.length === 1) RG.disc = discs[0].id;
+  const pontos = S.d.pontos.filter(p => p.disciplina_id === RG.disc).sort((a, b) => Number(a.ordem) - Number(b.ordem));
+  if (RG.ponto && RG.ponto !== '__outro' && !pontos.some(p => p.id === RG.ponto)) RG.ponto = '';
+  const opPontos = pontos.map(p => [p.id, p.nome]).concat([['__outro', 'Outro ponto (descrever)']]);
+  const pAtual = pontos.filter(p => p.id === RG.ponto)[0];
+  return '<div class="card">' +
+    '<div class="grid2"><div class="campo-v"><label>Apartamento / local</label><select onchange="RG.apto=this.value;salvarEstadoRG();render()">' + opcoes(aptos.map(a => [a.codigo, (a.tipo === 'Área comum' ? '' : 'Apto ') + a.codigo]), RG.apto, 'Selecione…') + '</select></div>' +
+    '<div class="campo-v"><label>Disciplina</label><select onchange="RG.disc=this.value;RG.ponto=\'\';salvarEstadoRG();render()">' + opcoes(discs.map(d => [d.id, d.nome]), RG.disc, 'Selecione…') + '</select></div></div>' +
+    '<div class="campo-v"><label>Ponto da obra</label><select ' + (RG.disc ? '' : 'disabled') + ' onchange="RG.ponto=this.value;render()">' + opcoes(opPontos, RG.ponto, RG.disc ? 'Selecione o ponto…' : 'Escolha a disciplina primeiro') + '</select></div>' +
+    (pAtual && pAtual.descricao ? '<p class="nota" style="margin:-6px 0 12px">' + h(pAtual.descricao) + '</p>' : '') +
+    (RG.ponto === '__outro' ? '<div class="campo-v"><label>Nome do ponto</label><input type="text" value="' + h(RG.outro) + '" oninput="RG.outro=this.value;atualizarHintRev()"></div>' : '') +
+    '<div class="campo-v"><label>Ambiente (opcional)</label><input type="text" list="amb-lista" value="' + h(RG.ambiente) + '" placeholder="Ex.: Banheiro 1" oninput="RG.ambiente=this.value;salvarEstadoRG();atualizarHintRev()"><datalist id="amb-lista">' + AMBIENTES.map(a => '<option value="' + h(a) + '">').join('') + '</datalist></div>' +
+    '<div class="hint-rev" id="rg-hint"></div>' +
+    '<div class="campo-v"><label>Legenda</label><textarea placeholder="O que a foto mostra (obrigatória para ponto fora da lista)" oninput="RG.legenda=this.value">' + h(RG.legenda) + '</textarea></div>' +
+    '<div class="campo-v"><label>Fotos (' + RG.fotos.length + ')</label><div class="fotos">' +
+    RG.fotos.map((f, k) => '<div class="th g"><img src="' + f.dataUrl + '" alt="" onclick="abrirLightboxSrc(this.src)"><button type="button" aria-label="Remover foto" onclick="rgRmFoto(' + k + ')">×</button></div>').join('') +
+    '<label class="btn-foto g">Tirar foto<input type="file" accept="image/*" capture="environment" hidden onchange="rgAddFotos(this)"></label>' +
+    '<label class="btn-foto g">Galeria<input type="file" accept="image/*" multiple hidden onchange="rgAddFotos(this)"></label></div></div>' +
+    '<button class="btn bloco" type="button" onclick="rgSalvar()">Guardar registro</button>' +
+    '<p class="nota" style="margin-bottom:0">O registro fica guardado neste aparelho e é enviado sozinho. Sem internet, ele espera na fila.</p></div>';
+}
+function atualizarHintRev() {
+  const el = $('#rg-hint'); if (!el) return;
+  const nome = RG.ponto === '__outro' ? RG.outro.trim() : '';
+  if (!RG.apto || !RG.disc || !RG.ponto || (RG.ponto === '__outro' && !nome)) { el.textContent = ''; return; }
+  const alvo = chaveRev({ apartamento: RG.apto, ponto_id: RG.ponto === '__outro' ? '' : RG.ponto, ponto_nome: nome, ambiente: RG.ambiente });
+  const vistos = {};
+  const n = (S.and ? S.and.registros : []).concat(S.filaCache).filter(r => { if (vistos[r.id]) return false; vistos[r.id] = true; return chaveRev(r) === alvo; }).length;
+  el.textContent = n ? 'Este ponto já tem ' + n + ' registro(s). Este será a revisão ' + (n + 1) + '.' : 'Primeiro registro deste ponto.';
+}
+async function rgAddFotos(input) {
+  const arq = Array.from(input.files || []); input.value = '';
+  if (!arq.length) return;
+  if (RG.fotos.length + arq.length > 12) return toast('No máximo 12 fotos por registro.', true);
+  progresso('Preparando fotos…');
+  try { for (const a of arq) RG.fotos.push({ id: uid(), dataUrl: await comprimirImagem(a, 1400, 0.8) }); } catch (e) { toast(e.message, true); }
+  progresso(null); render();
+}
+function rgRmFoto(k) { RG.fotos.splice(k, 1); render(); }
+async function rgSalvar() {
+  if (!RG.apto) return toast('Selecione o apartamento.', true);
+  if (!RG.disc) return toast('Selecione a disciplina.', true);
+  if (!RG.ponto) return toast('Selecione o ponto da obra.', true);
+  const outro = RG.ponto === '__outro';
+  if (outro && !RG.outro.trim()) return toast('Informe o nome do ponto.', true);
+  if (outro && !RG.legenda.trim()) return toast('Para um ponto fora da lista, descreva na legenda.', true);
+  if (!RG.fotos.length) return toast('Tire ao menos uma foto.', true);
+  const ponto = outro ? null : S.d.pontos.filter(p => p.id === RG.ponto)[0];
+  const reg = {
+    id: uid(), apartamento: RG.apto, disciplina_id: RG.disc, ponto_id: outro ? '' : RG.ponto, ponto_nome: outro ? RG.outro.trim() : ponto.nome,
+    ambiente: RG.ambiente.trim(), legenda: RG.legenda.trim(), capturado_em: agoraLocal()
+  };
+  const item = { id: reg.id, usuario: S.usuario, registro: reg, fotos: RG.fotos.map(f => ({ id: f.id, dataUrl: f.dataUrl })), criado: Date.now(), enviadas: [], erro: null };
+  try { await filaPut(item); } catch (e) { return toast('Não foi possível guardar no aparelho: ' + e.message, true); }
+  RG.fotos = []; RG.legenda = ''; RG.ponto = ''; RG.outro = ''; // mantém apartamento, disciplina e ambiente para o próximo ponto
+  toast('Registro guardado. Enviando…');
+  await atualizarPill(); render(); processarFila();
+}
+
+/* ---- Registros ---- */
+function cardRegistro(r, rev, fotos, local) {
+  return '<div class="card"><div class="linha-item"><div class="info"><b><span class="rev">Rev ' + rev + '</span>' + h(r.ponto_nome) + (r.ambiente ? ' · ' + h(r.ambiente) : '') + '</b>' +
+    '<div class="sub">' + (local ? 'Apto ' + h(r.apartamento) + ' · ' + h(r.disciplina_nome) + ' · ' : '') + h(fmtDataHora(r.capturado_em)) + ' · ' + h(r.criado_por) + '</div></div>' +
+    (S.admin ? '<div class="acoes"><button class="btn perigo sm" type="button" onclick="excluirRegistro(\'' + r.id + '\')">Excluir</button></div>' : '') + '</div>' +
+    (r.legenda ? '<p class="reg-leg">' + h(r.legenda) + '</p>' : '') +
+    (fotos.length ? '<div class="fotos">' + fotos.map(f => '<div class="th g"><img data-foto="' + h(f.id) + '" alt="" onclick="abrirLightbox(\'' + h(f.id) + '\')"></div>').join('') + '</div>' : '<p class="nota">Fotos ainda não enviadas ou removidas.</p>') + '</div>';
+}
+function viewRegistros() {
+  if (!S.and) { carregarAndamento(); return '<div class="vazio">Carregando registros…</div>'; }
+  const F = S.filtros.reg; const enc = ehEnc();
+  const aptos = unicos(S.d.apartamentos.map(a => a.codigo)).sort(nat);
+  const discs = S.d.disciplinas.slice().sort((a, b) => nat(a.nome, b.nome));
+  const pontos = F.disc ? S.d.pontos.filter(p => p.disciplina_id === F.disc).sort((a, b) => Number(a.ordem) - Number(b.ordem)) : [];
+  const rev = revisoes(S.and.registros); const fp = fotosPorRegistro();
+  const lista = S.and.registros.filter(r => (!F.apto || r.apartamento === F.apto) && (!F.disc || r.disciplina_id === F.disc) && (!F.ponto || r.ponto_id === F.ponto));
+  let corpo = '';
+  if (!lista.length) corpo = '<div class="vazio">Nenhum registro com esses filtros.</div>';
+  else if (F.apto) {
+    const ordemPonto = {}; S.d.pontos.forEach(p => { ordemPonto[p.id] = Number(p.ordem); });
+    const grupos = {};
+    lista.forEach(r => { const k = r.disciplina_nome + '||' + chaveRev(r); (grupos[k] = grupos[k] || { disc: r.disciplina_nome, ponto: r.ponto_nome, amb: r.ambiente, ordem: ordemPonto[r.ponto_id] || 9999, regs: [] }).regs.push(r); });
+    const gs = Object.keys(grupos).map(k => grupos[k]).sort((a, b) => nat(a.disc, b.disc) || (a.ordem - b.ordem) || nat(a.ponto, b.ponto) || nat(a.amb, b.amb));
+    let discAtual = null;
+    gs.forEach(g => {
+      if (g.disc !== discAtual) { discAtual = g.disc; corpo += '<div class="grupo-t">' + h(g.disc) + '</div>'; }
+      corpo += g.regs.sort((a, b) => rev[a.id] - rev[b.id]).map(r => cardRegistro(r, rev[r.id], fp[r.id] || [], false)).join('');
+    });
+  } else {
+    const rec = lista.slice().sort((a, b) => (b.capturado_em + b.criado_em).localeCompare(a.capturado_em + a.criado_em));
+    corpo = rec.slice(0, 40).map(r => cardRegistro(r, rev[r.id], fp[r.id] || [], true)).join('') +
+      (rec.length > 40 ? '<p class="nota">Mostrando os 40 mais recentes de ' + rec.length + '. Escolha um apartamento para ver tudo, organizado por ponto.</p>' : '');
+  }
+  return '<div class="titulo-sec"><h2>' + (enc ? 'Meus registros' : 'Registros de andamento') + '</h2><div class="acoes">' +
+    '<button class="btn sec sm" type="button" onclick="S.and=null;render()">Atualizar</button>' +
+    (!enc ? '<button class="btn sm" type="button" onclick="gerarPDFDossie()">Dossiê em PDF</button>' : '') + '</div></div>' +
+    '<div class="barra"><div class="campo"><label>Apartamento</label><select onchange="S.filtros.reg.apto=this.value;render()">' + opcoes(aptos, F.apto, 'Todos') + '</select></div>' +
+    '<div class="campo"><label>Disciplina</label><select onchange="S.filtros.reg.disc=this.value;S.filtros.reg.ponto=\'\';render()">' + opcoes(discs.map(d => [d.id, d.nome]), F.disc, 'Todas') + '</select></div>' +
+    '<div class="campo"><label>Ponto</label><select ' + (F.disc ? '' : 'disabled') + ' onchange="S.filtros.reg.ponto=this.value;render()">' + opcoes(pontos.map(p => [p.id, p.nome]), F.ponto, 'Todos') + '</select></div></div>' +
+    (!enc && F.apto ? '<p class="nota" style="margin-top:0">O dossiê em PDF usa o apartamento e a disciplina escolhidos acima.</p>' : '') + corpo;
+}
+async function excluirRegistro(id) {
+  if (!(await confirmar('Excluir este registro e as fotos? O conteúdo fica preservado no histórico de exclusões.', 'Excluir', true))) return;
+  try { progresso('Excluindo…'); await api('excluirRegistro', { id: id }); S.and = null; progresso(null); render(); toast('Registro excluído'); }
+  catch (e) { progresso(null); toast(e.message, true); }
+}
+function irRegistros(apto, disc, ponto) { S.filtros.reg = { apto: apto, disc: disc, ponto: ponto }; S.sub = 'registros'; render(); window.scrollTo(0, 0); }
+
+/* ---- Cobertura ---- */
+function viewCobertura() {
+  if (!S.and) { carregarAndamento(); return '<div class="vazio">Carregando…</div>'; }
+  const discs = S.d.disciplinas.filter(ativo).sort((a, b) => nat(a.nome, b.nome));
+  if (!discs.length) return '<div class="vazio">Cadastre disciplinas e pontos em Cadastros.</div>';
+  const F = S.filtros.cob; if (!discs.some(d => d.id === F.disc)) F.disc = discs[0].id;
+  const pontos = S.d.pontos.filter(p => p.disciplina_id === F.disc).sort((a, b) => Number(a.ordem) - Number(b.ordem));
+  const aptos = S.d.apartamentos.filter(ativo).sort((a, b) => nat(a.codigo, b.codigo));
+  const cont = {};
+  S.and.registros.forEach(r => { if (r.disciplina_id === F.disc && r.ponto_id) { const k = r.apartamento + '|' + r.ponto_id; cont[k] = (cont[k] || 0) + 1; } });
+  let total = aptos.length * pontos.length; let feitos = 0;
+  const linhas = aptos.map(a => {
+    let ok = 0;
+    const cel = pontos.map(p => { const n = cont[a.codigo + '|' + p.id] || 0; if (n) { ok++; feitos++; }
+      return n ? '<td class="f" onclick="irRegistros(\'' + h(a.codigo).replace(/'/g, '') + '\',\'' + F.disc + '\',\'' + p.id + '\')">' + n + '</td>' : '<td class="v">·</td>'; }).join('');
+    return '<tr><td>' + (a.tipo === 'Área comum' ? '' : 'Apto ') + h(a.codigo) + '</td>' + cel + '<td class="t ' + (ok === pontos.length && pontos.length ? 'cheio' : '') + '">' + ok + '/' + pontos.length + '</td></tr>';
+  }).join('');
+  const pct = total ? Math.round(feitos * 100 / total) : 0;
+  return '<div class="titulo-sec"><h2>Cobertura por apartamento</h2><button class="btn sec sm" type="button" onclick="S.and=null;render()">Atualizar</button></div>' +
+    '<div class="barra"><div class="campo"><label>Disciplina</label><select onchange="S.filtros.cob.disc=this.value;render()">' + opcoes(discs.map(d => [d.id, d.nome]), F.disc, 'Selecione') + '</select></div></div>' +
+    '<div class="kpis"><div class="kpi"><b>' + pct + '%</b><span>Pontos registrados</span></div><div class="kpi"><b>' + feitos + ' / ' + total + '</b><span>Apto × ponto</span></div></div>' +
+    (pontos.length && aptos.length ? '<div class="rolar"><table class="tab cob"><thead><tr><th>Apto</th>' + pontos.map(p => '<th title="' + h(p.nome) + '">' + h(p.nome) + '</th>').join('') + '<th>Total</th></tr></thead><tbody>' + linhas + '</tbody></table></div>' +
+      '<p class="nota">O número é a quantidade de registros (revisões) daquele ponto. Toque num número para ver as fotos.</p>' : '<div class="vazio">Sem pontos ou apartamentos cadastrados.</div>');
+}
+
+/* ---- Cadastros: disciplinas, pontos e usuários ---- */
+function viewDisciplinas() {
+  const lista = S.d.disciplinas.slice().sort((a, b) => (ativo(b) - ativo(a)) || nat(a.nome, b.nome));
+  return '<div class="titulo-sec" style="margin-top:22px"><h2>Disciplinas e pontos de andamento</h2><button class="btn" type="button" onclick="abrirDisciplina()">+ Nova disciplina</button></div>' +
+    (lista.length ? lista.map(d => '<div class="card" style="' + (ativo(d) ? '' : 'opacity:.6') + '"><div class="linha-item"><div class="info"><b>' + h(d.nome) + '</b><div class="sub">' + S.d.pontos.filter(p => p.disciplina_id === d.id).length + ' pontos' + (ativo(d) ? '' : ' · arquivada') + '</div></div>' +
+      '<div class="acoes"><button class="btn sec sm" type="button" onclick="abrirDisciplina(\'' + d.id + '\')">Editar</button><button class="btn sec sm" type="button" onclick="alternarAtivo(\'Disciplinas\',\'' + d.id + '\')">' + (ativo(d) ? 'Arquivar' : 'Reativar') + '</button></div></div></div>').join('')
+      : '<div class="vazio">Nenhuma disciplina cadastrada.</div>');
+}
+let DM = null; let DMODAL = null;
+function abrirDisciplina(id) {
+  const d = id ? S.d.disciplinas.filter(x => x.id === id)[0] : null;
+  const pontos = d ? S.d.pontos.filter(p => p.disciplina_id === d.id).sort((a, b) => Number(a.ordem) - Number(b.ordem)).map(p => ({ id: p.id, nome: p.nome, descricao: p.descricao })) : [{ id: uid(), nome: '', descricao: '' }];
+  DM = { id: d ? d.id : uid(), nome: d ? d.nome : '', pontos: pontos };
+  DMODAL = abrirModal(d ? 'Editar disciplina' : 'Nova disciplina',
+    '<div class="campo-v"><label>Nome da disciplina</label><input type="text" value="' + h(DM.nome) + '" oninput="DM.nome=this.value" placeholder="Ex.: Hidráulica"></div>' +
+    '<div class="sec-t">Pontos da obra (o que o encarregado vai fotografar)</div><div id="dm-pontos"></div>' +
+    '<button class="btn sec" type="button" onclick="dmAdd()">+ Adicionar ponto</button>' +
+    '<p class="nota">Registros já feitos guardam o nome do ponto, então renomear ou remover um ponto não apaga o histórico.</p>',
+    { largo: true, rodape: '<button class="btn" id="dm-salvar" type="button" onclick="salvarDisciplina()">Salvar disciplina</button>' });
+  desenharDM();
+}
+function desenharDM() {
+  $('#dm-pontos').innerHTML = DM.pontos.map((p, i) => '<div class="card"><div class="campo-v"><label>Ponto ' + (i + 1) + '</label><input type="text" value="' + h(p.nome) + '" placeholder="Ex.: Shaft aberto — prumadas" oninput="DM.pontos[' + i + '].nome=this.value"></div>' +
+    '<div class="campo-v"><label>Orientação para o encarregado (opcional)</label><input type="text" value="' + h(p.descricao) + '" placeholder="O que precisa aparecer na foto" oninput="DM.pontos[' + i + '].descricao=this.value"></div>' +
+    '<div class="acoes"><button class="btn sec sm" type="button" onclick="dmMove(' + i + ',-1)">↑</button><button class="btn sec sm" type="button" onclick="dmMove(' + i + ',1)">↓</button><button class="btn perigo sm" type="button" onclick="dmDel(' + i + ')">Remover</button></div></div>').join('');
+}
+function dmAdd() { DM.pontos.push({ id: uid(), nome: '', descricao: '' }); desenharDM(); const c = $('#dm-pontos').lastElementChild; if (c) c.scrollIntoView({ behavior: 'smooth', block: 'center' }); }
+function dmDel(i) { DM.pontos.splice(i, 1); desenharDM(); }
+function dmMove(i, d) { const j = i + d; if (j < 0 || j >= DM.pontos.length) return; const t = DM.pontos[i]; DM.pontos[i] = DM.pontos[j]; DM.pontos[j] = t; desenharDM(); }
+async function salvarDisciplina() {
+  if (!DM.nome.trim()) return toast('Informe o nome da disciplina.', true);
+  const pontos = DM.pontos.filter(p => p.nome.trim());
+  if (!pontos.length) return toast('Inclua ao menos um ponto com nome.', true);
+  const btn = $('#dm-salvar'); btn.disabled = true; btn.textContent = 'Salvando…';
+  try {
+    await enviarComRetry('salvarDisciplina', { disciplina: { id: DM.id, nome: DM.nome }, pontos: pontos });
+    await carregar(); fecharModal(DMODAL); DMODAL = null; render(); toast('Disciplina salva');
+  } catch (e) { btn.disabled = false; btn.textContent = 'Salvar disciplina'; toast(e.message, true); }
+}
+
+function viewUsuarios() {
+  const lista = S.d.usuarios.slice().sort((a, b) => (ativo(b) - ativo(a)) || nat(a.nome, b.nome));
+  const nomesDisc = u => { const ids = String(u.disciplinas || '').split(',').filter(Boolean); return ids.length ? ids.map(id => (S.d.disciplinas.filter(d => d.id === id)[0] || { nome: '?' }).nome).join(', ') : 'todas as disciplinas'; };
+  return '<div class="titulo-sec" style="margin-top:22px"><h2>Usuários</h2><button class="btn" type="button" onclick="abrirUsuario()">+ Novo encarregado</button></div>' +
+    '<div class="card"><b>Bárbara</b> <span class="sub">administradora: acesso total</span></div>' +
+    '<div class="card"><b>Gabriel</b> <span class="sub">acesso completo, sem histórico, usuários nem exclusões</span></div>' +
+    lista.map(u => '<div class="card" style="' + (ativo(u) ? '' : 'opacity:.6') + '"><div class="linha-item"><div class="info"><b>' + h(u.nome) + '</b><div class="sub">Encarregado · ' + h(nomesDisc(u)) + (ativo(u) ? '' : ' · arquivado') + '</div></div>' +
+      '<div class="acoes"><button class="btn sec sm" type="button" onclick="abrirUsuario(\'' + u.id + '\')">Editar</button><button class="btn sec sm" type="button" onclick="alternarAtivo(\'Usuarios\',\'' + u.id + '\')">' + (ativo(u) ? 'Arquivar' : 'Reativar') + '</button></div></div></div>').join('') +
+    '<p class="nota">Encarregados só registram fotos de andamento e veem os próprios registros. Arquivar bloqueia o acesso na hora.</p>';
+}
+function abrirUsuario(id) {
+  const u = id ? S.d.usuarios.filter(x => x.id === id)[0] : null;
+  const marcadas = u ? String(u.disciplinas || '').split(',').filter(Boolean) : [];
+  const discs = S.d.disciplinas.filter(d => ativo(d) || marcadas.indexOf(d.id) >= 0).sort((a, b) => nat(a.nome, b.nome));
+  const el = abrirModal(u ? 'Editar encarregado' : 'Novo encarregado',
+    '<div class="campo-v"><label>Nome (aparece na lista de login)</label><input type="text" id="us-nome" value="' + h(u ? u.nome : '') + '" ' + (u ? 'disabled' : '') + '></div>' +
+    '<div class="campo-v"><label>' + (u ? 'Nova senha (deixe em branco para manter)' : 'Senha (mínimo 6 caracteres)') + '</label><input type="text" id="us-senha" autocomplete="off" autocapitalize="off"></div>' +
+    '<div class="campo-v"><label>Disciplinas liberadas</label><div class="checks">' + discs.map(d => '<label><input type="checkbox" value="' + h(d.id) + '" ' + (marcadas.indexOf(d.id) >= 0 ? 'checked' : '') + '>' + h(d.nome) + '</label>').join('') + '</div>' +
+    '<p class="nota">Sem marcar nenhuma, ele vê todas as disciplinas.</p></div>' +
+    (u ? '<p class="nota">O nome não pode ser alterado: os registros ficam ligados a ele.</p>' : ''),
+    { rodape: '<button class="btn" id="us-salvar" type="button">Salvar</button>' });
+  $('#us-salvar', el).onclick = async () => {
+    const nome = $('#us-nome', el).value.trim(); const senha = $('#us-senha', el).value;
+    if (nome.length < 2) return toast('Informe o nome.', true);
+    if (!u && senha.length < 6) return toast('A senha precisa ter ao menos 6 caracteres.', true);
+    if (u && senha && senha.length < 6) return toast('A senha precisa ter ao menos 6 caracteres.', true);
+    const discs = Array.from(el.querySelectorAll('.checks input:checked')).map(i => i.value);
+    const btn = $('#us-salvar', el); btn.disabled = true;
+    try {
+      await enviarComRetry('salvarUsuario', { usuario: { id: u ? u.id : '', nome: nome, senha: senha, disciplinas: discs } });
+      await carregar(); fecharModal(el); render(); toast('Usuário salvo'); popularUsuarios();
+    } catch (e) { btn.disabled = false; toast(e.message, true); }
+  };
+}
+
+/* ================================================================== */
 /* PDFs (jsPDF)                                                        */
 /* ================================================================== */
 const COR = { marrom: [67, 51, 30], dourado: [140, 132, 103], oliva: [95, 122, 58], nc: [166, 61, 47], na: [138, 133, 119], claro: [246, 243, 236] };
@@ -1001,6 +1466,7 @@ async function gerarPDFFVS(id) {
     progresso('Montando PDF…');
     const j = await api('getFVS', { id: id });
     const f = j.fvs; const doc = novoPDF();
+    await prefetchFotos(j.fotos.map(x => x.id), (n, t) => progresso('Montando PDF…', 'Carregando fotos ' + n + ' de ' + t));
     pdfCabecalho(doc, 'FICHA DE VERIFICAÇÃO DE SERVIÇO', f.numero);
     let y = 40;
     const info = [['Data', fmtData(f.data)], ['Apartamento / local', f.apartamento], ['Serviço', f.modelo_nome], ['Fornecedor', f.fornecedor_nome || '-'], ['Responsável pela obra', f.responsavel_obra || '-'], ['Situação', f.status]];
@@ -1091,6 +1557,70 @@ async function gerarPDFFVS(id) {
   } catch (e) { progresso(null); toast(e.message, true); }
 }
 
+async function gerarPDFDossie() {
+  const F = S.filtros.reg;
+  if (!F.apto) return toast('Escolha um apartamento para gerar o dossiê.', true);
+  try {
+    progresso('Montando dossiê…');
+    if (!S.and) await carregarAndamento();
+    const rev = revisoes(S.and.registros); const fp = fotosPorRegistro();
+    const lista = S.and.registros.filter(r => r.apartamento === F.apto && (!F.disc || r.disciplina_id === F.disc));
+    if (!lista.length) { progresso(null); return toast('Não há registros nesse filtro.', true); }
+    const ids = []; lista.forEach(r => (fp[r.id] || []).forEach(f => ids.push(f.id)));
+    await prefetchFotos(ids, (n, t) => progresso('Montando dossiê…', 'Carregando fotos ' + n + ' de ' + t));
+    const ordemPonto = {}; S.d.pontos.forEach(p => { ordemPonto[p.id] = Number(p.ordem); });
+    const grupos = {};
+    lista.forEach(r => { const k = r.disciplina_nome + '||' + chaveRev(r); (grupos[k] = grupos[k] || { disc: r.disciplina_nome, ponto: r.ponto_nome, amb: r.ambiente, ordem: ordemPonto[r.ponto_id] || 9999, regs: [] }).regs.push(r); });
+    const gs = Object.keys(grupos).map(k => grupos[k]).sort((a, b) => nat(a.disc, b.disc) || (a.ordem - b.ordem) || nat(a.ponto, b.ponto) || nat(a.amb, b.amb));
+    const doc = novoPDF();
+    pdfCabecalho(doc, 'DOSSIÊ DE ANDAMENTO DE OBRA', null);
+    let y = 40;
+    doc.setFont('helvetica', 'bold'); doc.setFontSize(12); doc.setTextColor(40, 40, 40);
+    doc.text('Apartamento ' + F.apto + (F.disc ? ' · ' + (lista[0].disciplina_nome) : ''), 14, y);
+    doc.setFont('helvetica', 'normal'); doc.setFontSize(9); doc.setTextColor(...COR.dourado);
+    doc.text('Emitido em ' + fmtData(hoje()) + ' · ' + lista.length + ' registro(s) · ' + ids.length + ' foto(s)', 14, y + 5.5);
+    doc.setTextColor(40, 40, 40); y += 14;
+    let discAtual = null;
+    for (let gi = 0; gi < gs.length; gi++) {
+      const g = gs[gi];
+      if (g.disc !== discAtual) {
+        discAtual = g.disc;
+        if (y > 255) { doc.addPage(); y = 20; }
+        y = pdfSecao(doc, g.disc, y);
+      }
+      const regs = g.regs.sort((a, b) => rev[a.id] - rev[b.id]);
+      for (let ri = 0; ri < regs.length; ri++) {
+        const r = regs[ri]; const fotos = fp[r.id] || [];
+        const titulo = (r.ponto_nome || 'Ponto') + (r.ambiente ? ' · ' + r.ambiente : '');
+        const l2 = 'REV ' + rev[r.id] + ' · ' + fmtDataHora(r.capturado_em) + ' · ' + (r.criado_por || '');
+        const leg = r.legenda ? doc.splitTextToSize(r.legenda, 180) : [];
+        const bloco = 12 + leg.length * 4 + (fotos.length ? 50 : 0);
+        if (y + bloco > 284) { doc.addPage(); y = 20; }
+        doc.setFont('helvetica', 'bold'); doc.setFontSize(10); doc.setTextColor(...COR.marrom); doc.text(titulo, 14, y);
+        doc.setFont('helvetica', 'normal'); doc.setFontSize(8); doc.setTextColor(...COR.dourado); doc.text(l2, 14, y + 4.5);
+        doc.setTextColor(40, 40, 40); y += 9;
+        if (leg.length) { doc.setFontSize(9); doc.text(leg, 14, y); y += leg.length * 4 + 1; }
+        for (let k = 0; k < fotos.length; k++) {
+          const col = k % 3;
+          if (col === 0 && k > 0) y += 47;
+          if (col === 0 && y + 46 > 284) { doc.addPage(); y = 20; }
+          const x = 14 + col * 62;
+          try {
+            const u = await fotoDataUrl(fotos[k].id); const d = await dimsImg(u);
+            let w = 58; let hh = w * d.h / d.w; if (hh > 44) { hh = 44; w = hh * d.w / d.h; }
+            doc.addImage(u, 'JPEG', x + (58 - w) / 2, y + (44 - hh) / 2, w, hh);
+          } catch (e) { doc.setFontSize(8); doc.text('(foto indisponível)', x, y + 20); }
+        }
+        if (fotos.length) y += 48;
+        y += 4;
+      }
+    }
+    pdfRodape(doc);
+    doc.save(nomeArquivoLimpo('Dossie_Apto_' + F.apto + (F.disc ? '_' + lista[0].disciplina_nome : '') + '_' + hoje()) + '.pdf');
+    progresso(null);
+  } catch (e) { progresso(null); toast(e.message, true); }
+}
+
 function gerarPDFPendencias() {
   try {
     const lista = pendFiltradas();
@@ -1135,9 +1665,10 @@ function gerarPDFPendencias() {
   if (salvo) {
     try {
       const s = JSON.parse(salvo);
-      if (s && s.token) { S.token = s.token; S.usuario = s.usuario; S.admin = !!s.admin; iniciar(); return; }
+      if (s && s.token) { S.token = s.token; S.usuario = s.usuario; S.admin = !!s.admin; S.perfil = s.perfil || null; iniciar(); return; }
     } catch (e) { ls.del('fvs_sessao'); }
   }
+  popularUsuarios();
   $('#login').hidden = false;
 })();
 </script>

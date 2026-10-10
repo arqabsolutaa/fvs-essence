@@ -2,7 +2,7 @@
 
 Sistema de Ficha de Verificação de Serviço da Absoluta Construtora e Incorporadora.
 
-- `index.html` — interface (GitHub Pages)
+- `index.html` — interface (GitHub Pages): FVS e Registro de andamento
 - `Code.gs` — back-end (Google Apps Script)
 - `DOCUMENTACAO-SISTEMA.md` — documentação técnica e passo a passo de implantação
 
