@@ -23,9 +23,10 @@ button{cursor:pointer}
 
 /* Login */
 #login{position:fixed;inset:0;z-index:1000;background:var(--fundo);display:flex;flex-direction:column;overflow:auto}
-#login .lg-img{flex:0 0 42vh;background:#1e2124 url(assets/capa-fundo.jpg) center 35%/cover no-repeat}
+#login .lg-img{position:relative;flex:0 0 46vh;background:#1e2124 url(assets/capa-fundo.jpg) center 35%/cover no-repeat}
+#login .lg-img::after{content:'';position:absolute;inset:0;background:linear-gradient(to bottom,transparent 55%,var(--fundo))}
 #login .lg-lado{flex:1;display:flex;align-items:center;justify-content:center;padding:24px 20px}
-@media(min-aspect-ratio:1/1){#login{flex-direction:row}#login .lg-img{flex:0 0 46%;background-position:center}#login .lg-lado{flex:1}}
+@media(min-aspect-ratio:1/1){#login{flex-direction:row}#login .lg-img{flex:0 0 80vh;background-size:100% 100%;background-position:left top}#login .lg-img::after{background:linear-gradient(to right,transparent 74%,var(--fundo))}#login .lg-lado{flex:1}}
 .login-box{width:100%;max-width:340px}
 .login-box h1{font-size:20px;color:var(--texto);margin:0 0 2px}
 .login-box p{margin:0 0 14px;color:var(--suave);font-size:14px}
