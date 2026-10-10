@@ -22,17 +22,28 @@ button{cursor:pointer}
 [hidden]{display:none!important}
 
 /* Login */
-#login{position:fixed;inset:0;z-index:1000;background:var(--fundo);display:flex;flex-direction:column;overflow:auto}
-#login .lg-img{position:relative;flex:0 0 46vh;background:#1e2124 url(assets/capa-fundo.jpg) center 35%/cover no-repeat}
-#login .lg-img::after{content:'';position:absolute;inset:0;background:linear-gradient(to bottom,transparent 55%,var(--fundo))}
-#login .lg-lado{flex:1;display:flex;align-items:center;justify-content:center;padding:24px 20px}
-@media(min-aspect-ratio:1/1){#login{flex-direction:row}#login .lg-img{flex:0 0 80vh;background-size:100% 100%;background-position:left top}#login .lg-img::after{background:linear-gradient(to right,transparent 74%,var(--fundo))}#login .lg-lado{flex:1}}
-.login-box{width:100%;max-width:340px}
-.login-box h1{font-size:20px;color:var(--texto);margin:0 0 2px}
-.login-box p{margin:0 0 14px;color:var(--suave);font-size:14px}
-.login-box label{display:block;font-size:12px;font-weight:700;color:var(--suave);text-transform:uppercase;letter-spacing:.06em;margin:12px 0 4px}
+#login{position:fixed;inset:0;z-index:1000;background:#1c1e20;display:flex;flex-direction:column;overflow:auto;color:#fff}
+#login .lg-img{flex:0 0 38vh;background:#1c1e20 url(assets/capa-fundo.jpg) center 35%/cover no-repeat}
+#login .lg-lado{position:relative;flex:1;display:flex;align-items:center;justify-content:center;padding:28px 24px;overflow:hidden;border-top:1px solid rgba(255,255,255,.22)}
+#login .lg-lado::before{content:'';position:absolute;inset:-40px;background:url(assets/capa-fundo.jpg) center/cover;filter:blur(24px) brightness(1.9) contrast(.75) saturate(.35)}
+#login .lg-lado::after{content:'';position:absolute;inset:0;background:rgba(52,56,60,.62)}
+@media(min-aspect-ratio:1/1){#login{flex-direction:row}#login .lg-img{flex:0 0 50%;background-position:center 40%}#login .lg-lado{flex:1;border-top:0;border-left:1px solid rgba(255,255,255,.22)}}
+.login-box{position:relative;z-index:1;width:100%;max-width:400px}
+.login-box .lg-logo{display:block;height:40px;margin:0 0 26px;filter:brightness(0) invert(1)}
+.login-box h1{font-size:28px;line-height:1.1;color:#fff;margin:0 0 8px;font-weight:700}
+.login-box p{margin:0 0 26px;color:rgba(255,255,255,.62);font-size:15px}
+.login-box label{display:block;font-size:15px;font-weight:600;color:#fff;margin:20px 0 2px;text-transform:none;letter-spacing:0}
+.login-box select,#login .login-box input{background:transparent;color:#fff;border:0;border-bottom:1px solid rgba(255,255,255,.4);border-radius:0;padding:10px 0;min-height:44px;font-size:16px}
+.login-box select{-webkit-appearance:none;appearance:none;background:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='8'%3E%3Cpath d='M1 1l5 5 5-5' fill='none' stroke='%23ffffff' stroke-opacity='.7' stroke-width='1.5'/%3E%3C/svg%3E") right 4px center no-repeat}
+.login-box select option{color:#222;background:#fff}
+.login-box input::placeholder{color:rgba(255,255,255,.5)}
+.login-box select:focus,.login-box input:focus{outline:0;border-bottom-color:#fff}
+.login-box .btn{background:#26292c;border:1px solid rgba(255,255,255,.2);color:#fff;border-radius:6px;min-height:50px;font-size:17px;font-weight:500;margin-top:34px}
+.login-box .btn:hover,.login-box .btn:active{background:#3a3d41;border-color:rgba(255,255,255,.3)}
+.login-box .nota{color:rgba(255,255,255,.6)}
+.login-box .erro{background:rgba(166,61,47,.35);color:#fff}
 #lg-senha::placeholder{letter-spacing:normal;font-size:15px}
-#lg-senha{text-align:center;letter-spacing:.35em;font-size:22px;cursor:pointer;background:#fff}
+#lg-senha{letter-spacing:.35em;font-size:22px;cursor:pointer}
 #teclado{position:fixed;inset:0;z-index:1100;background:rgba(30,32,34,.55);display:flex;align-items:flex-end;justify-content:center;padding:0}
 #teclado .tk{background:var(--fundo);width:100%;max-width:380px;border-radius:18px 18px 0 0;padding:14px 18px 20px;border:1px solid var(--linha)}
 @media(min-height:700px){#teclado{align-items:center;padding:20px}#teclado .tk{border-radius:18px}}
@@ -194,7 +205,7 @@ canvas#sig{width:100%;height:170px;background:#fff;border:2px dashed var(--doura
   <div class="lg-img"></div>
   <div class="lg-lado">
   <form class="login-box" onsubmit="entrar(event)">
-    <img src="assets/logo-absoluta.png" alt="Absoluta Construtora e Incorporadora" style="display:block;height:42px;margin:0 0 18px">
+    <img class="lg-logo" src="assets/logo-absoluta.png" alt="Absoluta Construtora e Incorporadora">
     <h1>FVS · Essence Residence</h1>
     <p>Ficha de Verificação de Serviço</p>
     <label for="lg-comp">Competência</label>
