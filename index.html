@@ -4,7 +4,7 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
 <meta name="theme-color" content="#5f6368">
-<title>FVS · Essence Residence</title>
+<title>Essence Residence</title>
 <style>
 :root{
   --marrom:#5f6368; --dourado:#a3a7ab; --oliva:#5f7a3a; --oliva-claro:#e8eddc;
@@ -28,7 +28,7 @@ button{cursor:pointer}
 #login .lg-lado{position:relative;width:100%;display:flex;justify-content:center;padding:24px 20px;margin:auto}
 .login-box{width:100%;max-width:440px;padding:38px 40px 40px;border-radius:28px;background:rgba(255,255,255,.1);border:1px solid rgba(255,255,255,.22);-webkit-backdrop-filter:blur(22px);backdrop-filter:blur(22px)}
 .login-box .lg-logo{display:block;height:36px;margin:0 auto 22px;filter:brightness(0) invert(1)}
-.login-box h1{font-size:30px;line-height:1.15;color:#fff;margin:0 0 6px;font-weight:700;text-align:center}
+.login-box h1{font-size:30px;line-height:1.15;color:#fff;margin:0 0 18px;font-weight:700;text-align:center}
 .login-box p{margin:0 0 22px;color:rgba(255,255,255,.7);font-size:14px;text-align:center}
 .login-box label{display:block;font-size:14px;font-weight:600;color:#fff;margin:18px 0 0;text-transform:none;letter-spacing:0}
 .login-box select,#login .login-box input{background:transparent;color:#fff;border:0;border-bottom:1px solid rgba(255,255,255,.6);border-radius:0;padding:10px 0;min-height:44px;font-size:16px}
@@ -51,17 +51,17 @@ button{cursor:pointer}
 #lg-senha{letter-spacing:.35em;font-size:22px;cursor:pointer}
 @media(max-width:600px){#lg-senha{text-align:center}}
 #teclado{position:fixed;inset:0;z-index:1100;background:rgba(30,32,34,.55);display:flex;align-items:flex-end;justify-content:center;padding:0}
-#teclado .tk{background:#2b2e31;color:#fff;width:100%;max-width:380px;border-radius:18px 18px 0 0;padding:14px 18px 20px;border:1px solid rgba(255,255,255,.15)}
+#teclado .tk{background:#2b2e31;color:#fff;width:100%;max-width:290px;border-radius:18px 18px 0 0;padding:12px 14px 16px;border:1px solid rgba(255,255,255,.15)}
 @media(min-height:700px){#teclado{align-items:center;padding:20px}#teclado .tk{border-radius:18px}}
 #teclado .tk-h{display:flex;align-items:center;justify-content:space-between;margin-bottom:6px;font-size:13px;font-weight:700;color:rgba(255,255,255,.7);text-transform:uppercase;letter-spacing:.06em}
-#teclado .tk-h button{background:transparent;border:1px solid rgba(255,255,255,.3);color:#fff;border-radius:8px;width:38px;height:38px;font-size:22px;line-height:1}
-#teclado .tk-pontos{height:44px;display:flex;align-items:center;justify-content:center;gap:12px;margin:6px 0 10px}
-#teclado .tk-pontos i{width:14px;height:14px;border-radius:50%;border:2px solid #fff;display:block}
+#teclado .tk-h button{background:transparent;border:1px solid rgba(255,255,255,.3);color:#fff;border-radius:8px;width:34px;height:34px;font-size:20px;line-height:1}
+#teclado .tk-pontos{height:34px;display:flex;align-items:center;justify-content:center;gap:12px;margin:6px 0 10px}
+#teclado .tk-pontos i{width:12px;height:12px;border-radius:50%;border:2px solid #fff;display:block}
 #teclado .tk-pontos i.on{background:#fff}
-#teclado .tk-grade{display:grid;grid-template-columns:repeat(3,1fr);gap:10px}
-#teclado .tk-grade button{height:62px;border-radius:14px;border:1px solid rgba(255,255,255,.18);background:rgba(255,255,255,.08);font-size:26px;font-weight:600;color:#fff}
+#teclado .tk-grade{display:grid;grid-template-columns:repeat(3,1fr);gap:8px}
+#teclado .tk-grade button{height:48px;border-radius:12px;border:1px solid rgba(255,255,255,.18);background:rgba(255,255,255,.08);font-size:22px;font-weight:600;color:#fff}
 #teclado .tk-grade button:active{background:rgba(255,255,255,.22)}
-#teclado .tk-grade button.ok{background:#5f6368;border-color:#5f6368;color:#fff;font-size:17px}
+#teclado .tk-grade button.ok{background:#5f6368;border-color:#5f6368;color:#fff;font-size:15px}
 #teclado .tk-grade button.ap{font-size:22px;color:rgba(255,255,255,.7)}
 .erro{background:var(--nc-claro);color:var(--nc);border-radius:8px;padding:9px 12px;font-size:14px;margin-top:12px}
 
@@ -212,9 +212,8 @@ canvas#sig{width:100%;height:170px;background:#fff;border:2px dashed var(--doura
   <div class="lg-lado">
   <form class="login-box" onsubmit="entrar(event)">
     <img class="lg-logo" src="assets/logo-absoluta.png" alt="Absoluta Construtora e Incorporadora">
-    <h1>FVS · Essence Residence</h1>
-    <p>Ficha de Verificação de Serviço</p>
-    <label for="lg-comp">Competência</label>
+    <h1>Essence Residence</h1>
+    <label for="lg-comp">Disciplina</label>
     <select id="lg-comp" onchange="trocarCompetencia()"><option>Administração</option></select>
     <label for="lg-user">Nome</label>
     <select id="lg-user" onchange="atualizarCampoSenha()"><option>Bárbara</option><option>Gabriel</option></select>
@@ -382,7 +381,7 @@ async function entrar(ev) {
   }
 }
 
-/* ---- Login: competência → nome → senha numérica (teclado na tela) ---- */
+/* ---- Login: disciplina → nome → senha numérica (teclado na tela) ---- */
 const LG = { pin: '', lista: [{ nome: 'Bárbara', competencias: ['Administração'] }, { nome: 'Gabriel', competencias: ['Administração'] }], competencias: ['Administração'], semSenha: [] };
 function semSenhaAtual() { return LG.semSenha.indexOf($('#lg-user').value) >= 0; }
 function atualizarCampoSenha() { LG.pin = ''; $('#lg-senha').value = ''; $('#lg-senha-box').hidden = semSenhaAtual(); }
@@ -424,7 +423,7 @@ document.addEventListener('keydown', ev => {
   if (/^\d$/.test(ev.key)) tecla(ev.key); else if (ev.key === 'Backspace') tecla('⌫'); else if (ev.key === 'Enter') tecla('Entrar');
 });
 
-/** Competências e nomes da tela de login (guardados no aparelho para funcionar mesmo sem sinal). */
+/** Disciplinas e nomes da tela de login (guardados no aparelho para funcionar mesmo sem sinal). */
 async function popularUsuarios() {
   const aplicar = j => {
     if (j.lista && j.competencias) { LG.lista = j.lista; LG.competencias = j.competencias; }
@@ -1403,7 +1402,7 @@ function viewRegistros() {
     corpo = rec.slice(0, 40).map(r => cardRegistro(r, rev[r.id], fp[r.id] || [], true)).join('') +
       (rec.length > 40 ? '<p class="nota">Mostrando os 40 mais recentes de ' + rec.length + '. Escolha um apartamento para ver tudo, organizado por ponto.</p>' : '');
   }
-  return '<div class="titulo-sec"><h2>' + (enc ? 'Registros da competência' : 'Registros de andamento') + '</h2><div class="acoes">' +
+  return '<div class="titulo-sec"><h2>' + (enc ? 'Registros da disciplina' : 'Registros de andamento') + '</h2><div class="acoes">' +
     '<button class="btn sec sm" type="button" onclick="S.and=null;render()">Atualizar</button>' +
     (!enc ? '<button class="btn sm" type="button" onclick="gerarPDFDossie()">Dossiê em PDF</button>' : '') + '</div></div>' +
     '<div class="barra"><div class="campo"><label>Apartamento</label><select onchange="S.filtros.reg.apto=this.value;render()">' + opcoes(aptos, F.apto, 'Todos') + '</select></div>' +
@@ -1446,7 +1445,7 @@ function viewCobertura() {
 /* ---- Cadastros: disciplinas, pontos e usuários ---- */
 function viewDisciplinas() {
   const lista = S.d.disciplinas.slice().sort((a, b) => (ativo(b) - ativo(a)) || nat(a.nome, b.nome));
-  return '<div class="titulo-sec" style="margin-top:22px"><h2>Competências e pontos de andamento</h2><button class="btn" type="button" onclick="abrirDisciplina()">+ Nova competência</button></div>' +
+  return '<div class="titulo-sec" style="margin-top:22px"><h2>Disciplinas e pontos de andamento</h2><button class="btn" type="button" onclick="abrirDisciplina()">+ Nova disciplina</button></div>' +
     (lista.length ? lista.map(d => '<div class="card" style="' + (ativo(d) ? '' : 'opacity:.6') + '"><div class="linha-item"><div class="info"><b>' + h(d.nome) + '</b><div class="sub">' + S.d.pontos.filter(p => p.disciplina_id === d.id).length + ' pontos' + (ativo(d) ? '' : ' · arquivada') + '</div></div>' +
       '<div class="acoes"><button class="btn sec sm" type="button" onclick="abrirDisciplina(\'' + d.id + '\')">Editar</button><button class="btn sec sm" type="button" onclick="alternarAtivo(\'Disciplinas\',\'' + d.id + '\')">' + (ativo(d) ? 'Arquivar' : 'Reativar') + '</button></div></div></div>').join('')
       : '<div class="vazio">Nenhuma disciplina cadastrada.</div>');
@@ -1500,8 +1499,8 @@ function abrirUsuario(id) {
   const el = abrirModal(u ? 'Editar encarregado' : 'Novo encarregado',
     '<div class="campo-v"><label>Nome (aparece na lista de login)</label><input type="text" id="us-nome" value="' + h(u ? u.nome : '') + '" ' + (u ? 'disabled' : '') + '></div>' +
     '<div class="campo-v"><label>' + (u ? 'Nova senha (deixe em branco para manter)' : 'Senha (só números, 4 a 8 dígitos)') + '</label><input type="text" id="us-senha" inputmode="numeric" pattern="[0-9]*" maxlength="8" autocomplete="off"></div>' +
-    '<div class="campo-v"><label>Competências liberadas</label><div class="checks">' + discs.map(d => '<label><input type="checkbox" value="' + h(d.id) + '" ' + (marcadas.indexOf(d.id) >= 0 ? 'checked' : '') + '>' + h(d.nome) + '</label>').join('') + '</div>' +
-    '<p class="nota">Ele vê e registra apenas nas competências marcadas, incluindo o que os colegas da mesma competência registrarem. Marque ao menos uma.</p></div>' +
+    '<div class="campo-v"><label>Disciplinas liberadas</label><div class="checks">' + discs.map(d => '<label><input type="checkbox" value="' + h(d.id) + '" ' + (marcadas.indexOf(d.id) >= 0 ? 'checked' : '') + '>' + h(d.nome) + '</label>').join('') + '</div>' +
+    '<p class="nota">Ele vê e registra apenas nas disciplinas marcadas, incluindo o que os colegas da mesma disciplina registrarem. Marque ao menos uma.</p></div>' +
     (u ? '<p class="nota">O nome não pode ser alterado: os registros ficam ligados a ele.</p>' : ''),
     { rodape: '<button class="btn" id="us-salvar" type="button">Salvar</button>' });
   $('#us-salvar', el).onclick = async () => {
@@ -1509,7 +1508,7 @@ function abrirUsuario(id) {
     if (nome.length < 2) return toast('Informe o nome.', true);
     if (senha && !/^\d{4,8}$/.test(senha)) return toast('A senha deve ter de 4 a 8 números.', true);
     const discs = Array.from(el.querySelectorAll('.checks input:checked')).map(i => i.value);
-    if (!discs.length) return toast('Marque ao menos uma competência.', true);
+    if (!discs.length) return toast('Marque ao menos uma disciplina.', true);
     const btn = $('#us-salvar', el); btn.disabled = true;
     try {
       await enviarComRetry('salvarUsuario', { usuario: { id: u ? u.id : '', nome: nome, senha: senha, disciplinas: discs } });

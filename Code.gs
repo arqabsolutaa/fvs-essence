@@ -361,7 +361,7 @@ function setup() {
   Logger.log('Setup concluído. Abas, pastas do Drive e exemplos prontos. Se for a primeira vez, o próximo passo é configurarSenhas().');
 }
 
-/** Garante as competências básicas (sem pontos): a Bárbara edita a lista depois em Cadastros → Disciplinas. */
+/** Garante as disciplinas básicas (sem pontos): a Bárbara edita a lista depois em Cadastros → Disciplinas. */
 function garantirCompetencias_() {
   const nomes = lerAba_('Disciplinas').map(function (d) { return String(d.nome).toLowerCase(); });
   ['Hidráulica', 'Elétrica', 'Civil', 'Estrutura'].forEach(function (n) {
@@ -710,7 +710,7 @@ function uploadFoto_(req, u, info) {
   return { ok: true, id: id };
 }
 
-/** Encarregado só lê fotos de andamento das competências (disciplinas) dele. */
+/** Encarregado só lê fotos de andamento das disciplinas dele. */
 function podeVerFoto_(foto, u, info, regsCache) {
   if (info.perfil !== 'encarregado') return true;
   if (foto.tipo !== 'andamento') return false;
