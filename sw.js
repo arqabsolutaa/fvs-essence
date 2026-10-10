@@ -1,6 +1,6 @@
 /* Service worker do FVS Essence: deixa o app abrir sem internet.
    Não guarda nada do Apps Script (dados e login sempre vão ao servidor). */
-const VERSAO_SW = 'fvs-v1.10.0';
+const VERSAO_SW = 'fvs-v1.11.0';
 const ESSENCIAIS = ['./', './index.html', './assets/logo-absoluta.png', './assets/capa-fundo.jpg', './manifest.webmanifest', './assets/icon-192.png', './assets/icon-512.png', './assets/apple-touch-icon.png', './assets/favicon-64.png'];
 const EXTERNOS = ['https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js'];
 

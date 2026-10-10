@@ -14,7 +14,7 @@
  * Cadastros → Usuários; só registram e veem as próprias fotos de andamento).
  */
 
-const VERSAO = '1.11.0';
+const VERSAO = '1.12.0';
 /** Enquanto true, usuário que AINDA NÃO tem senha definida entra sem senha. Quem já tem senha continua exigindo. */
 const PERMITIR_SEM_SENHA = false;
 const TZ = 'America/Sao_Paulo';
@@ -27,7 +27,7 @@ const PASTA_BACKUP = 'Backup_FVS_Essence';
 const MAX_FOTO_BYTES = 6 * 1024 * 1024;
 
 const ABAS = {
-  Modelos: ['id', 'nome', 'descricao', 'ativo', 'criado_em', 'atualizado_em', 'disciplina_id', 'escopo', 'encarregado', 'modulo'],
+  Modelos: ['id', 'nome', 'descricao', 'ativo', 'criado_em', 'atualizado_em', 'disciplina_id', 'escopo', 'encarregado', 'modulo', 'apartamento'],
   ModeloItens: ['id', 'modelo_id', 'ordem', 'descricao', 'criterio', 'exige_foto'],
   Fornecedores: ['id', 'nome', 'servicos', 'contato', 'ativo'],
   Apartamentos: ['id', 'codigo', 'tipo', 'ativo'],
@@ -522,6 +522,7 @@ function getFVS_(req, u, info) {
 
 /** Onde o checklist se aplica: 'Unidade', 'Torre' (áreas comuns) ou '' (os dois). */
 function moduloValido_(m) { return texto_(m, 40).trim(); }
+function aptoValido_(c) { c = texto_(c, 20).trim(); if (!c) return ''; const a = lerAba_('Apartamentos').filter(function (x) { return String(x.codigo) === c; })[0]; if (!a) throw new Error('Apartamento ' + c + ' não cadastrado.'); return String(a.codigo); }
 function escopoValido_(e) { return e === 'Unidade' || e === 'Torre' ? e : ''; }
 /** Encarregado específico (opcional): precisa existir e ter a disciplina. Vazio = todos da disciplina. */
 function encarregadoValido_(nome, discId) {
@@ -545,8 +546,9 @@ function salvarModelo_(req, u) {
   const escopo = escopoValido_(m.escopo);
   const enc = encarregadoValido_(m.encarregado, discId);
   const modulo = moduloValido_(m.modulo);
-  if (existe) atualizar_('Modelos', id, { nome: nome, descricao: texto_(m.descricao, 500), atualizado_em: agora, disciplina_id: discId, escopo: escopo, encarregado: enc, modulo: modulo });
-  else inserir_('Modelos', { id: id, nome: nome, descricao: texto_(m.descricao, 500), ativo: 'sim', criado_em: agora, atualizado_em: agora, disciplina_id: discId, escopo: escopo, encarregado: enc, modulo: modulo });
+  const apto = aptoValido_(m.apartamento);
+  if (existe) atualizar_('Modelos', id, { nome: nome, descricao: texto_(m.descricao, 500), atualizado_em: agora, disciplina_id: discId, escopo: escopo, encarregado: enc, modulo: modulo, apartamento: apto });
+  else inserir_('Modelos', { id: id, nome: nome, descricao: texto_(m.descricao, 500), ativo: 'sim', criado_em: agora, atualizado_em: agora, disciplina_id: discId, escopo: escopo, encarregado: enc, modulo: modulo, apartamento: apto });
   const outros = lerAba_('ModeloItens').filter(function (x) { return x.modelo_id !== id; }).map(limpar_);
   const novos = [];
   itens.forEach(function (it, i) {
@@ -1051,9 +1053,10 @@ function adicionarServicos_(req, u) {
   const escopo = escopoValido_(req.escopo);
   const enc = encarregadoValido_(req.encarregado, disc.id);
   const modulo = moduloValido_(req.modulo);
-  const chave = function (nome, esc, en, mo) { return String(nome).toLowerCase() + '|' + (esc || '') + '|' + (en || '') + '|' + String(mo || '').toLowerCase(); };
+  const apto = aptoValido_(req.apartamento);
+  const chave = function (nome, esc, en, mo, ap) { return String(nome).toLowerCase() + '|' + (esc || '') + '|' + (en || '') + '|' + String(mo || '').toLowerCase() + '|' + (ap || ''); };
   const modelosAtuais = lerAba_('Modelos').filter(function (m) { return m.disciplina_id === disc.id; });
-  const nomesM = {}; modelosAtuais.forEach(function (m) { nomesM[chave(m.nome, m.escopo, m.encarregado, m.modulo)] = true; });
+  const nomesM = {}; modelosAtuais.forEach(function (m) { nomesM[chave(m.nome, m.escopo, m.encarregado, m.modulo, m.apartamento)] = true; });
   const pontosAtuais = lerAba_('PontosAndamento').filter(function (p) { return p.disciplina_id === disc.id; });
   const nomesP = {}; pontosAtuais.forEach(function (p) { nomesP[String(p.nome).toLowerCase()] = true; });
   let ordemP = pontosAtuais.length;
@@ -1063,12 +1066,12 @@ function adicionarServicos_(req, u) {
     const nome = texto_(sv.nome, 120).trim();
     const itens = (sv.itens || []).map(function (it) { return { d: texto_(it[0], 300).trim(), c: texto_(it[1], 500).trim(), f: it[2] ? 'sim' : '' }; }).filter(function (it) { return it.d; });
     if (!nome) return;
-    if (nomesM[chave(nome, escopo, enc, modulo)]) { jaTinha++; }
+    if (nomesM[chave(nome, escopo, enc, modulo, apto)]) { jaTinha++; }
     else if (itens.length) {
       const id = novoId_();
-      inserir_('Modelos', { id: id, nome: nome, descricao: texto_(sv.descricao, 500), ativo: 'sim', criado_em: agora, atualizado_em: agora, disciplina_id: disc.id, escopo: escopo, encarregado: enc, modulo: modulo });
+      inserir_('Modelos', { id: id, nome: nome, descricao: texto_(sv.descricao, 500), ativo: 'sim', criado_em: agora, atualizado_em: agora, disciplina_id: disc.id, escopo: escopo, encarregado: enc, modulo: modulo, apartamento: apto });
       itens.forEach(function (it, i) { inserir_('ModeloItens', { id: novoId_(), modelo_id: id, ordem: String(i + 1), descricao: it.d, criterio: it.c, exige_foto: it.f }); });
-      nomesM[chave(nome, escopo, enc, modulo)] = true; nM++;
+      nomesM[chave(nome, escopo, enc, modulo, apto)] = true; nM++;
     }
     (sv.pontos || []).forEach(function (p) {
       const pn = texto_(p[0], 120).trim();

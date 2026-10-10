@@ -338,7 +338,8 @@ function ativo(x) { return x.ativo !== 'nao'; }
 /** Torre = áreas comuns (térreo, ático, barrilete…); Unidade = apartamento. */
 function tipoLocal(cod) { const a = S.d.apartamentos.filter(x => x.codigo === cod)[0]; return a && a.tipo === 'Área comum' ? 'Torre' : 'Unidade'; }
 function escopoTxt(e) { return e === 'Torre' ? 'Torre' : (e === 'Unidade' ? 'Unidades' : 'Torre e unidades'); }
-function modeloServeLocal(m, cod) { return !cod || !m.escopo || m.escopo === tipoLocal(cod); }
+function modeloServeLocal(m, cod) { if (m.apartamento) return !cod || String(m.apartamento) === String(cod); return !cod || !m.escopo || m.escopo === tipoLocal(cod); }
+function unidadesCod() { return S.d.apartamentos.filter(a => ativo(a) && a.tipo !== 'Área comum').map(a => a.codigo).sort(nat); }
 function modulosExistentes() { return unicos(S.d.modelos.map(m => m.modulo).concat(['Unidades', 'Térreo', 'Fachada', 'Áreas comuns', 'Cobertura'])).sort(nat); }
 const OPC_ONDE = [['Torre', 'Torre (áreas comuns)'], ['Unidade', 'Unidades']];
 function exigeFoto(it) { const x = S.d.itens.filter(i => i.id === it.item_id)[0]; return !!(x && x.exige_foto === 'sim'); }
@@ -1146,7 +1147,7 @@ function viewModelos() {
     '' +
     (lista.length ? lista.map(m => {
       const n = S.d.itens.filter(i => i.modelo_id === m.id).length;
-      return '<div class="card" style="' + (ativo(m) ? '' : 'opacity:.6') + '"><div class="linha-item"><div class="info"><b>' + h(m.nome) + '</b><div class="sub">' + (m.disciplina_id ? h(nomeDiscId(m.disciplina_id)) + (m.encarregado ? ' (' + h(m.encarregado) + ')' : '') + ' · ' : 'Sem disciplina · ') + (m.modulo ? h(m.modulo) + ' · ' : '') + escopoTxt(m.escopo) + ' · ' + n + ' itens' + (m.descricao ? ' · ' + h(m.descricao) : '') + (ativo(m) ? '' : ' · arquivado') + '</div></div>' +
+      return '<div class="card" style="' + (ativo(m) ? '' : 'opacity:.6') + '"><div class="linha-item"><div class="info"><b>' + h(m.nome) + '</b><div class="sub">' + (m.disciplina_id ? h(nomeDiscId(m.disciplina_id)) + (m.encarregado ? ' (' + h(m.encarregado) + ')' : '') + ' · ' : 'Sem disciplina · ') + (m.modulo ? h(m.modulo) + ' · ' : '') + (m.apartamento ? 'Apto ' + h(m.apartamento) + ' · ' : escopoTxt(m.escopo)) + ' · ' + n + ' itens' + (m.descricao ? ' · ' + h(m.descricao) : '') + (ativo(m) ? '' : ' · arquivado') + '</div></div>' +
         '<div class="acoes"><button class="btn sec sm" type="button" onclick="abrirModelo(\'' + m.id + '\')">Editar</button>' +
         '<button class="btn sec sm" type="button" onclick="abrirModelo(\'' + m.id + '\',true)">Duplicar</button>' +
         '<button class="btn sec sm" type="button" onclick="alternarAtivo(\'Modelos\',\'' + m.id + '\')">' + (ativo(m) ? 'Arquivar' : 'Reativar') + '</button>' +
@@ -1157,16 +1158,17 @@ let M = null; let MMODAL = null;
 function abrirModelo(id, duplicar) {
   const m = id ? S.d.modelos.filter(x => x.id === id)[0] : null;
   const itens = m ? S.d.itens.filter(i => i.modelo_id === m.id).sort((a, b) => Number(a.ordem) - Number(b.ordem)).map(i => ({ id: duplicar ? uid() : i.id, descricao: i.descricao, criterio: i.criterio, exige_foto: i.exige_foto === 'sim' })) : [{ id: uid(), descricao: '', criterio: '' }];
-  M = { disciplina_id: m ? (m.disciplina_id || '') : '', escopo: m ? (m.escopo || '') : '', encarregado: m ? (m.encarregado || '') : '', modulo: m ? (m.modulo || '') : '', id: (m && !duplicar) ? m.id : uid(), nome: m ? (duplicar ? m.nome + ' (cópia)' : m.nome) : '', descricao: m ? m.descricao : '', itens: itens };
+  M = { disciplina_id: m ? (m.disciplina_id || '') : '', escopo: m ? (m.escopo || '') : '', encarregado: m ? (m.encarregado || '') : '', modulo: m ? (m.modulo || '') : '', apartamento: m ? (m.apartamento || '') : '', id: (m && !duplicar) ? m.id : uid(), nome: m ? (duplicar ? m.nome + ' (cópia)' : m.nome) : '', descricao: m ? m.descricao : '', itens: itens };
   MMODAL = abrirModal(m && !duplicar ? 'Editar modelo' : 'Novo modelo',
     '<div class="campo-v"><label>Nome do serviço</label><input type="text" value="' + h(M.nome) + '" oninput="M.nome=this.value"></div>' +
     '<div class="grid2"><div class="campo-v"><label>Disciplina (quem usa este checklist)</label><select onchange="M.disciplina_id=this.value;M.encarregado=\'\';atualizarEncModelo()">' + opcoes(S.d.disciplinas.filter(ativo).map(d => [d.id, d.nome]), M.disciplina_id, 'Nenhuma (só a administração vê)') + '</select></div>' +
     '<div class="campo-v"><label>Encarregado (opcional)</label><select id="m-enc" onchange="M.encarregado=this.value"></select></div></div>' +
     '<div class="campo-v"><label>Onde se aplica</label><select onchange="M.escopo=this.value">' + opcoes(OPC_ONDE, M.escopo, 'Torre e unidades') + '</select></div>' +
     '<div class="campo-v"><label>Módulo (opcional)</label><input type="text" list="bb-mods" maxlength="40" value="' + h(M.modulo) + '" oninput="M.modulo=this.value"><datalist id="bb-mods">' + modulosExistentes().map(x => '<option value="' + h(x) + '">').join('') + '</datalist></div>' +
+    '<div class="campo-v"><label>Só para o apartamento (personalizado)</label><select onchange="M.apartamento=this.value">' + opcoes(unidadesCod().map(c => [c, 'Apto ' + c]), M.apartamento, 'Todos (padrão)') + '</select></div>' +
     '<div class="campo-v"><label>Descrição (opcional)</label><input type="text" value="' + h(M.descricao) + '" oninput="M.descricao=this.value"></div>' +
     '<div class="sec-t">Itens e critérios</div><div id="m-itens"></div>' +
-    '<button class="btn sec" type="button" onclick="mAdd()">+ Adicionar item</button>',
+    '<div class="acoes"><button class="btn sec" type="button" onclick="mAdd()">+ Adicionar item</button><button class="btn sec" type="button" onclick="mColar()">Colar vários itens</button></div>',
     { largo: true, rodape: '<button class="btn" id="m-salvar" type="button" onclick="salvarModelo()">Salvar modelo</button>' });
   atualizarEncModelo(); desenharModeloItens();
 }
@@ -1180,6 +1182,16 @@ function desenharModeloItens() {
     '<button class="btn perigo sm" type="button" onclick="mDel(' + i + ')">Remover</button></div></div>').join('');
 }
 function mAdd() { M.itens.push({ id: uid(), descricao: '', criterio: '' }); desenharModeloItens(); const c = $('#m-itens').lastElementChild; if (c) c.scrollIntoView({ behavior: 'smooth', block: 'center' }); }
+function mColar() {
+  let ta;
+  const md = abrirModal('Colar itens', '<div class="campo-v"><label>Um item por linha: item | medida ou critério</label><textarea id="m-colar" rows="10" placeholder="Ponto de gás cooktop da ilha | h = 60 cm no piso&#10;Ducha higiênica do lavabo | h = 50 cm"></textarea></div><label style="display:flex;gap:8px;align-items:center;margin:4px 0"><input type="checkbox" id="m-colar-f" checked> Foto obrigatória</label>',
+    { rodape: '<button class="btn" type="button" id="m-colar-ok">Adicionar</button>' });
+  $('#m-colar-ok').onclick = function () {
+    const f = $('#m-colar-f').checked;
+    $('#m-colar').value.split('\n').forEach(l => { const p = l.split('|'); const d = p[0].trim(); if (!d) return; M.itens = M.itens.filter(i => i.descricao.trim() || i.criterio.trim()); M.itens.push({ id: uid(), descricao: d, criterio: (p[1] || '').trim(), exige_foto: f }); });
+    fecharModal(md); desenharModeloItens();
+  };
+}
 function mDel(i) { M.itens.splice(i, 1); desenharModeloItens(); }
 function mMove(i, d) { const j = i + d; if (j < 0 || j >= M.itens.length) return; const t = M.itens[i]; M.itens[i] = M.itens[j]; M.itens[j] = t; desenharModeloItens(); }
 async function salvarModelo() {
@@ -1188,7 +1200,7 @@ async function salvarModelo() {
   if (!itens.length) return toast('Inclua ao menos um item com descrição.', true);
   const btn = $('#m-salvar'); btn.disabled = true; btn.textContent = 'Salvando…';
   try {
-    await enviarComRetry('salvarModelo', { modelo: { id: M.id, nome: M.nome, descricao: M.descricao, disciplina_id: M.disciplina_id, escopo: M.escopo, encarregado: M.encarregado, modulo: M.modulo || '' }, itens: itens });
+    await enviarComRetry('salvarModelo', { modelo: { id: M.id, nome: M.nome, descricao: M.descricao, disciplina_id: M.disciplina_id, escopo: M.escopo, encarregado: M.encarregado, modulo: M.modulo || '', apartamento: M.apartamento || '' }, itens: itens });
     await carregar(); fecharModal(MMODAL); MMODAL = null; render(); toast('Modelo salvo');
   } catch (e) { btn.disabled = false; btn.textContent = 'Salvar modelo'; toast(e.message, true); }
 }
@@ -1376,12 +1388,12 @@ async function excluirObs(id) {
 /* ================================================================== */
 /* Biblioteca de serviços (só a Bárbara)                               */
 /* ================================================================== */
-const BB = { disc: '', enc: '', escopo: '', modulo: '', open: {}, sel: {} };
+const BB = { disc: '', enc: '', escopo: '', modulo: '', apto: '', open: {}, sel: {} };
 function bibContar() { return document.querySelectorAll('#bib input[data-sv]:checked').length; }
 function bibAtualizar() { BB.sel = {}; document.querySelectorAll('#bib input[data-sv]:checked').forEach(i => { BB.sel[i.dataset.sv] = 1; }); const b = $('#bib-add'); if (b) { const n = bibContar(); b.textContent = n ? 'Adicionar ' + n + ' serviço(s) à disciplina' : 'Marque os serviços'; b.disabled = !n; } }
 function discPorNome(n) { const x = String(n || '').toLowerCase(); const d = S.d.disciplinas.filter(ativo).filter(d => String(d.nome).toLowerCase() === x)[0]; return d ? d.id : ''; }
-function destinoArea(a) { const disc = a.destino ? discPorNome(a.destino) : BB.disc; return { disc: disc, enc: (a.destino && BB.disc !== disc) ? '' : BB.enc, escopo: BB.escopo || a.escopo || '', modulo: BB.modulo.trim() || a.modulo || '' }; }
-function temServico(a, nome) { const d = destinoArea(a); return S.d.modelos.some(m => m.disciplina_id === d.disc && (m.escopo || '') === d.escopo && (m.encarregado || '') === d.enc && (m.modulo || '').toLowerCase() === d.modulo.toLowerCase() && String(m.nome).toLowerCase() === nome.toLowerCase()); }
+function destinoArea(a) { const disc = a.destino ? discPorNome(a.destino) : BB.disc; return { disc: disc, enc: (a.destino && BB.disc !== disc) ? '' : BB.enc, escopo: BB.escopo || a.escopo || '', modulo: BB.modulo.trim() || a.modulo || '', apto: BB.apto }; }
+function temServico(a, nome) { const d = destinoArea(a); return S.d.modelos.some(m => m.disciplina_id === d.disc && (m.escopo || '') === d.escopo && (m.encarregado || '') === d.enc && (m.modulo || '').toLowerCase() === d.modulo.toLowerCase() && String(m.apartamento || '') === String(d.apto || '') && String(m.nome).toLowerCase() === nome.toLowerCase()); }
 function bibArea(a, marcar) { document.querySelectorAll('#bib input[data-a="' + a + '"]').forEach(i => { if (!i.disabled) i.checked = marcar; }); bibAtualizar(); }
 function viewBiblioteca() {
   const discs = S.d.disciplinas.filter(ativo).sort((a, b) => nat(a.nome, b.nome));
@@ -1395,6 +1407,7 @@ function viewBiblioteca() {
     '<div class="campo-v"><label>Encarregado</label><select ' + (BB.disc ? '' : 'disabled') + ' onchange="BB.enc=this.value;render()">' + opcoes(encs, BB.enc, 'Todos da disciplina') + '</select></div></div>' +
     '<div class="campo-v" style="margin:0"><label>Onde se aplica</label><select onchange="BB.escopo=this.value;render()">' + opcoes(OPC_ONDE, BB.escopo, 'Torre e unidades') + '</select></div>' +
     '<div class="campo-v" style="margin:10px 0 0"><label>Módulo (opcional)</label><input type="text" list="bb-mods" maxlength="40" placeholder="Ex.: Unidades, Fachada, Térreo" value="' + h(BB.modulo) + '" onchange="BB.modulo=this.value;render()"><datalist id="bb-mods">' + modulosExistentes().map(x => '<option value="' + h(x) + '">').join('') + '</datalist></div>' +
+    '<div class="campo-v" style="margin:10px 0 0"><label>Só para o apartamento (personalizado)</label><select onchange="BB.apto=this.value;render()">' + opcoes(unidadesCod().map(c => [c, 'Apto ' + c]), BB.apto, 'Todos (padrão)') + '</select></div>' +
     (discs.length ? '' : '<p class="nota">Cadastre as disciplinas em Cadastros primeiro.</p>') + '</div>' +
     '<div id="bib">' + LIB.map((a, ai) => '<details class="bib-area" ' + (BB.open[ai] ? 'open' : '') + ' ontoggle="BB.open[' + ai + ']=this.open"><summary><b>' + h(a.area) + '</b> <span class="sub">' + a.servicos.length + ' serviços' + (a.destino ? ' · vai para ' + h(a.destino) + ' (módulo ' + h(a.modulo) + ')' : '') + '</span></summary>' +
       '<div class="bib-acoes"><button class="btn sec sm" type="button" onclick="bibArea(' + ai + ',true)">Marcar todos</button><button class="btn sec sm" type="button" onclick="bibArea(' + ai + ',false)">Desmarcar</button></div>' +
@@ -1412,18 +1425,18 @@ async function bibAdicionar() {
   for (const p of marcados) {
     const a = LIB[p[0]], d = destinoArea(a);
     if (!d.disc) return toast(a.destino ? 'A disciplina ' + a.destino + ' não está cadastrada.' : 'Escolha a disciplina de destino.', true);
-    const k = [d.disc, d.enc, d.escopo, d.modulo].join('|');
+    const k = [d.disc, d.enc, d.escopo, d.modulo, d.apto].join('|');
     (grupos[k] = grupos[k] || { d: d, servicos: [] }).servicos.push(a.servicos[p[1]]);
   }
   const gs = Object.keys(grupos).map(k => grupos[k]);
-  const txt = gs.map(g => g.servicos.length + ' em ' + nomeDiscId(g.d.disc) + (g.d.enc ? ' (' + g.d.enc + ')' : '') + (g.d.modulo ? ' · ' + g.d.modulo : '') + ' · ' + escopoTxt(g.d.escopo)).join('\n');
+  const txt = gs.map(g => g.servicos.length + ' em ' + nomeDiscId(g.d.disc) + (g.d.enc ? ' (' + g.d.enc + ')' : '') + (g.d.modulo ? ' · ' + g.d.modulo : '') + (g.d.apto ? ' · Apto ' + g.d.apto : ' · ' + escopoTxt(g.d.escopo))).join('\n');
   if (!(await confirmar('Adicionar ' + marcados.length + ' serviço(s)?\n' + txt, 'Adicionar'))) return;
   const btn = $('#bib-add'); btn.disabled = true;
   try {
     progresso('Adicionando…');
     let ck = 0, pt = 0;
     for (const g of gs) {
-      const r = await enviarComRetry('adicionarServicos', { disciplina_id: g.d.disc, encarregado: g.d.enc, escopo: g.d.escopo, modulo: g.d.modulo, servicos: g.servicos });
+      const r = await enviarComRetry('adicionarServicos', { disciplina_id: g.d.disc, encarregado: g.d.enc, escopo: g.d.escopo, modulo: g.d.modulo, apartamento: g.d.apto, servicos: g.servicos });
       ck += r.checklists || 0; pt += r.pontos || 0;
     }
     await carregar(); progresso(null); BB.sel = {}; render();
@@ -1780,7 +1793,8 @@ function calcPainel() {
     if (F.mod && (m.modulo || '') !== F.mod) return;
     const fe = feitoPor[m.id] || {};
     let esperado, feitos, faltam;
-    if (m.escopo === 'Torre') { esperado = 1; feitos = Object.keys(fe).length ? 1 : 0; faltam = feitos ? [] : ['Torre']; }
+    if (m.apartamento) { const ok = unidades.indexOf(String(m.apartamento)) >= 0; esperado = ok ? 1 : 0; faltam = ok && !fe[m.apartamento] ? [String(m.apartamento)] : []; feitos = esperado - faltam.length; }
+    else if (m.escopo === 'Torre') { esperado = 1; feitos = Object.keys(fe).length ? 1 : 0; faltam = feitos ? [] : ['Torre']; }
     else { esperado = unidades.length; faltam = unidades.filter(c => !fe[c]); feitos = esperado - faltam.length; }
     linhas.push({ m: m, disc: m.disciplina_id, encs: encs, modulo: m.modulo || '', esperado: esperado, feitos: feitos, faltam: faltam });
   });
