@@ -40,7 +40,19 @@ button{cursor:pointer}
 .login-box .btn:hover,.login-box .btn:active{background:#3f4246;border-color:rgba(255,255,255,.35)}
 .login-box .nota{color:rgba(255,255,255,.7)}
 .login-box .erro{background:rgba(166,61,47,.45);color:#fff;border-radius:12px;text-align:center}
+#login .dd{position:relative}
+#login .dd-btn{width:100%;display:flex;align-items:center;justify-content:space-between;text-align:left;background:transparent;border:0;border-bottom:1px solid rgba(255,255,255,.6);color:#fff;padding:10px 0;min-height:44px;font-size:16px}
+#login .dd-btn svg{flex:0 0 auto;margin-left:8px;transition:transform .15s}
+#login .dd.aberto .dd-btn svg{transform:rotate(180deg)}
+#login .dd-btn:focus-visible{outline:0;border-bottom-color:#fff}
+#login .dd-lista{position:absolute;left:0;right:0;top:calc(100% + 8px);z-index:30;background:#3e4145;border:1px solid rgba(255,255,255,.18);border-radius:14px;padding:6px;max-height:232px;overflow:auto}
+#login .dd-item{padding:11px 14px;border-radius:10px;color:#fff;font-size:15px;cursor:pointer}
+#login .dd-item:hover{background:rgba(255,255,255,.1)}
+#login .dd-item.on{background:#2b2e31}
+#login select.dd-orig{display:none}
 @media(max-width:600px){
+  #login .dd-btn{border:1px solid rgba(255,255,255,.6);border-radius:999px;padding:10px 18px;min-height:46px}
+  #login .dd-lista{border-radius:18px}
   .login-box{padding:26px 20px 28px;border-radius:22px;background:rgba(255,255,255,.09)}
   .login-box h1{font-size:26px}
   .login-box label{font-size:12px;margin:14px 0 4px;color:rgba(255,255,255,.8)}
@@ -423,6 +435,26 @@ document.addEventListener('keydown', ev => {
   if (/^\d$/.test(ev.key)) tecla(ev.key); else if (ev.key === 'Backspace') tecla('⌫'); else if (ev.key === 'Enter') tecla('Entrar');
 });
 
+/** Menu suspenso próprio (a lista nativa do navegador não aceita estilo). Mantém o <select> escondido como fonte do valor. */
+function melhorarSelect(sel) {
+  sel.classList.add('dd-orig');
+  const box = document.createElement('div'); box.className = 'dd';
+  box.innerHTML = '<button type="button" class="dd-btn"><span></span><svg width="12" height="8" viewBox="0 0 12 8"><path d="M1 1l5 5 5-5" fill="none" stroke="#fff" stroke-opacity=".8" stroke-width="1.5"/></svg></button><div class="dd-lista" hidden></div>';
+  sel.parentNode.insertBefore(box, sel.nextSibling);
+  const btn = box.querySelector('.dd-btn'); const lista = box.querySelector('.dd-lista');
+  const fechar = () => { lista.hidden = true; box.classList.remove('aberto'); };
+  const desenhar = () => {
+    btn.firstChild.textContent = sel.value || '';
+    lista.innerHTML = Array.from(sel.options).map(o => '<div class="dd-item' + (o.value === sel.value ? ' on' : '') + '" data-v="' + h(o.value) + '">' + h(o.text) + '</div>').join('');
+  };
+  btn.onclick = () => { const abrir = lista.hidden; document.querySelectorAll('#login .dd-lista').forEach(l => { l.hidden = true; l.parentNode.classList.remove('aberto'); }); if (abrir) { lista.hidden = false; box.classList.add('aberto'); } };
+  lista.onclick = ev => { const it = ev.target.closest('.dd-item'); if (!it) return; sel.value = it.dataset.v; sel.dispatchEvent(new Event('change')); desenhar(); fechar(); };
+  document.addEventListener('click', ev => { if (!box.contains(ev.target)) fechar(); });
+  document.addEventListener('keydown', ev => { if (ev.key === 'Escape') fechar(); });
+  new MutationObserver(desenhar).observe(sel, { childList: true });
+  sel.addEventListener('change', desenhar);
+  desenhar();
+}
 /** Disciplinas e nomes da tela de login (guardados no aparelho para funcionar mesmo sem sinal). */
 async function popularUsuarios() {
   const aplicar = j => {
@@ -1762,6 +1794,7 @@ function gerarPDFPendencias() {
 /* ================================================================== */
 (function boot() {
   precarregarLogo();
+  melhorarSelect($('#lg-comp')); melhorarSelect($('#lg-user'));
   const salvo = ls.get('fvs_sessao');
   if (salvo) {
     try {
