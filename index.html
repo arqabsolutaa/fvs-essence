@@ -541,7 +541,7 @@ async function carregar() {
 function renderFaixa() {
   const el = $('#faixa'); if (!el) return;
   el.hidden = !S.offline;
-  el.innerHTML = S.offline ? '<span>Sem conexão com o servidor. ' + (ehEnc() || S.perfil ? 'Você pode continuar registrando: as fotos ficam guardadas neste aparelho e sobem sozinhas quando a internet voltar.' : '') + '</span><button type="button" onclick="tentarReconectar()">Tentar de novo</button>' : '';
+  el.innerHTML = S.offline ? '<span>Sem conexão com o servidor. ' + (S.perfil ? 'Pode continuar trabalhando: checklists, fotos e observações ficam guardados neste aparelho e sobem sozinhos quando a internet voltar.' : '') + '</span><button type="button" onclick="tentarReconectar()">Tentar de novo</button>' : '';
 }
 async function tentarReconectar() {
   try { await carregar(); S.and = null; render(); processarFila(); if (!S.offline) toast('Conectado'); } catch (e) { toast(e.message, true); }
@@ -631,7 +631,7 @@ function viewFVS() {
     '<div class="campo"><label>Apartamento</label><select onchange="setF(\'fvs\',\'apto\',this.value)">' + opcoes(aptos, F.apto, 'Todos') + '</select></div>' +
     '<div class="campo"><label>Serviço</label><select onchange="setF(\'fvs\',\'modelo\',this.value)">' + opcoes(modelos, F.modelo, 'Todos') + '</select></div>' +
     '<div class="campo"><label>Fornecedor</label><select onchange="setF(\'fvs\',\'forn\',this.value)">' + opcoes(forns, F.forn, 'Todos') + '</select></div></div>' +
-    '<div id="lista-fvs">' + listaFVSHTML(lista, contAbertas) + '</div>';
+    aguardandoHTML(['fvs', 'reinsp']) + '<div id="lista-fvs">' + listaFVSHTML(lista, contAbertas) + '</div>';
 }
 function listaFVSHTML(lista, cont) {
   if (!lista.length) return '<div class="vazio">' + (S.d.fvs.length ? 'Nenhuma FVS com esses filtros.' : 'Nenhuma FVS registrada ainda. Toque em “+ Nova FVS” para começar.') + '</div>';
@@ -947,34 +947,22 @@ async function salvarFVS() {
   const btn = $('#ed-salvar'); btn.disabled = true;
 
   try {
-    progresso('Salvando FVS…');
-    const r = await enviarComRetry('salvarFVS', { fvs: f, itens: itens, pendencias: pend });
-    const falhas = [];
-    let n = 0; const total = novas.length + (sigData ? 1 : 0);
-    for (const x of novas) {
-      n++; progresso('Enviando fotos…', n + ' de ' + total);
-      try { await enviarComRetry('uploadFoto', { id: x.ft.id, fvs_id: f.id, fvs_item_id: x.item, tipo: 'item', dataUrl: x.ft.dataUrl }); }
-      catch (e) { falhas.push(e.message); }
-    }
+    const passos = [{ action: 'salvarFVS', params: { fvs: f, itens: itens, pendencias: pend } }];
+    novas.forEach(x => passos.push({ action: 'uploadFoto', params: { id: x.ft.id, fvs_id: f.id, fvs_item_id: x.item, tipo: 'item', dataUrl: x.ft.dataUrl } }));
     if (sigData) {
-      n++; progresso('Enviando assinatura…', n + ' de ' + total);
-      try {
-        await enviarComRetry('uploadFoto', { id: uid(), fvs_id: f.id, tipo: 'assinatura', dataUrl: sigData });
-        if (E.sigExistenteId) { await enviarComRetry('excluirFoto', { id: E.sigExistenteId }); }
-      } catch (e) { falhas.push('assinatura: ' + e.message); }
+      passos.push({ action: 'uploadFoto', params: { id: uid(), fvs_id: f.id, tipo: 'assinatura', dataUrl: sigData } });
+      if (E.sigExistenteId) passos.push({ action: 'excluirFoto', params: { id: E.sigExistenteId }, tolerante: true });
     }
-    for (const id of E.fotosRemover) { try { await enviarComRetry('excluirFoto', { id: id }); } catch (e) { falhas.push(e.message); } }
+    E.fotosRemover.forEach(id => passos.push({ action: 'excluirFoto', params: { id: id }, tolerante: true }));
+    await enfileirar('fvs', 'Checklist · ' + f.modelo_nome + ' · ' + f.apartamento, passos);
     ls.del('fvs_rascunho');
-    progresso('Atualizando…');
-    await carregar();
-    progresso(null);
     fecharModal(EMODAL); EMODAL = null; E = null;
     render();
-    if (falhas.length) toast(r.numero + ' salva, mas ' + falhas.length + ' envio(s) falharam. Abra a FVS em Editar para reenviar.', true);
-    else toast(r.numero + ' salva · ' + r.status);
+    toast('Checklist guardado no aparelho. Enviando…');
+    processarFila();
   } catch (e) {
     progresso(null); btn.disabled = false;
-    toast(e.message, true);
+    toast('Não foi possível guardar neste aparelho: ' + e.message, true);
   }
 }
 
@@ -1076,19 +1064,15 @@ async function addFotosReinsp(input) {
 async function salvarReinspecao() {
   const res = $('#ri-res').value; const btn = $('#ri-salvar'); btn.disabled = true;
   try {
-    progresso('Registrando reinspeção…');
-    await enviarComRetry('reinspecionar', { id: R.id, resultado: res, obs: $('#ri-obs').value, novo_prazo: res === 'nok' ? $('#ri-prazo').value : '' });
-    const falhas = [];
-    let n = 0;
-    for (const f of R.fotos) {
-      n++; progresso('Enviando fotos…', n + ' de ' + R.fotos.length);
-      try { await enviarComRetry('uploadFoto', { id: f.id, fvs_id: R.p.fvs_id, fvs_item_id: R.p.fvs_item_id, pendencia_id: R.id, tipo: 'reinspecao', dataUrl: f.dataUrl }); }
-      catch (e) { falhas.push(e.message); }
-    }
-    await carregar(); progresso(null);
+    const passos = [{ action: 'reinspecionar', params: { id: R.id, resultado: res, obs: $('#ri-obs').value, novo_prazo: res === 'nok' ? $('#ri-prazo').value : '' }, tolerante: true }];
+    R.fotos.forEach(f => passos.push({ action: 'uploadFoto', params: { id: f.id, fvs_id: R.p.fvs_id, fvs_item_id: R.p.fvs_item_id, pendencia_id: R.id, tipo: 'reinspecao', dataUrl: f.dataUrl } }));
+    await enfileirar('reinsp', 'Reinspeção · apto ' + R.p.apartamento + ' · ' + R.p.servico, passos);
+    // mostra já na tela; o servidor confirma quando receber
+    if (res === 'ok') { const p = S.d.pendencias.filter(x => x.id === R.id)[0]; if (p) p.status = 'Resolvida'; }
     fecharModal(R.el); R = null; render();
-    toast(falhas.length ? 'Reinspeção registrada, mas ' + falhas.length + ' foto(s) não foram enviadas.' : (res === 'ok' ? 'Pendência resolvida' : 'Reinspeção registrada'), falhas.length > 0);
-  } catch (e) { progresso(null); btn.disabled = false; toast(e.message, true); }
+    toast('Reinspeção guardada. Enviando…');
+    processarFila();
+  } catch (e) { btn.disabled = false; toast('Não foi possível guardar neste aparelho: ' + e.message, true); }
 }
 
 /* ================================================================== */
@@ -1202,12 +1186,11 @@ async function addFotoRegistro(regId, input) {
   const arq = Array.from(input.files || []); input.value = '';
   if (!arq.length) return;
   try {
-    progresso('Enviando fotos…');
-    for (const a of arq) {
-      const dataUrl = await comprimirImagem(a, 1400, 0.8);
-      await enviarComRetry('uploadFoto', { id: uid(), tipo: 'andamento', registro_id: regId, dataUrl: dataUrl });
-    }
-    progresso(null); S.and = null; render(); toast('Foto(s) adicionada(s)');
+    progresso('Preparando fotos…');
+    const passos = [];
+    for (const a of arq) passos.push({ action: 'uploadFoto', params: { id: uid(), tipo: 'andamento', registro_id: regId, dataUrl: await comprimirImagem(a, 1400, 0.8) } });
+    await enfileirar('foto', 'Fotos do registro (' + passos.length + ')', passos);
+    progresso(null); toast('Foto(s) guardada(s). Enviando…'); processarFila();
   } catch (e) { progresso(null); toast(e.message, true); }
 }
 async function excluirFotoGeral(id, onde) {
@@ -1242,14 +1225,14 @@ function viewObs() {
   const novo = soLeitura() ? '' : '<button class="btn" type="button" onclick="abrirNovaObs()">+ Nova observação</button>';
   const cab = '<div class="titulo-sec"><h2>Observações gerais</h2><div class="acoes"><button class="btn sec sm" type="button" onclick="S.obs=null;render()">Atualizar</button>' + novo + '</div></div>' +
     '<p class="nota" style="margin-top:0">Avisos e reclamações com foto: algo danificado, entulho em local errado, falta de acesso. Vai direto para a administração.</p>';
-  if (!S.obs) return cab + '<div class="vazio">Carregando…</div>';
+  if (!S.obs) return cab + aguardandoHTML(['obs', 'foto']) + '<div class="vazio">Carregando…</div>';
   const discs = S.d.disciplinas.slice().sort((a, b) => nat(a.nome, b.nome));
   const fp = {}; S.obs.fotos.forEach(f => { (fp[f.observacao_id] = fp[f.observacao_id] || []).push(f); });
   const lista = S.obs.lista.filter(o => (!F.disc || o.disciplina_id === F.disc) && (!F.status || (F.status === 'Aberta') === (o.status !== 'Resolvida')))
     .sort((a, b) => (a.status === 'Resolvida') - (b.status === 'Resolvida') || String(b.criado_em).localeCompare(String(a.criado_em)));
   return cab + '<div class="barra">' + (discs.length > 1 ? '<div class="campo"><label>Disciplina</label><select onchange="S.filtros.obs.disc=this.value;render()">' + opcoes(discs.map(d => [d.id, d.nome]), F.disc, 'Todas') + '</select></div>' : '') +
     '<div class="campo"><label>Situação</label><select onchange="S.filtros.obs.status=this.value;render()">' + opcoes([['Aberta', 'Abertas'], ['Resolvida', 'Resolvidas']], F.status, 'Todas') + '</select></div></div>' +
-    (lista.length ? lista.map(o => cardObs(o, fp[o.id] || [])).join('') : '<div class="vazio">Nenhuma observação.</div>');
+    aguardandoHTML(['obs', 'foto']) + (lista.length ? lista.map(o => cardObs(o, fp[o.id] || [])).join('') : '<div class="vazio">Nenhuma observação.</div>');
 }
 let OB = null; let OBMODAL = null;
 function abrirNovaObs() {
@@ -1281,20 +1264,25 @@ async function obFotos(input) {
 async function salvarObs() {
   if (!OB.disc) return toast('Selecione a disciplina.', true);
   if (!OB.texto.trim()) return toast('Descreva a observação.', true);
-  const btn = $('#ob-salvar'); btn.disabled = true; btn.textContent = 'Enviando…';
+  const btn = $('#ob-salvar'); btn.disabled = true;
   try {
-    await enviarComRetry('salvarObservacao', { observacao: { id: OB.id, disciplina_id: OB.disc, local: OB.local, relacionada: OB.rel, texto: OB.texto } });
-    for (const f of OB.fotos) { if (f.enviada) continue; await enviarComRetry('uploadFoto', { id: f.id, tipo: 'observacao', observacao_id: OB.id, dataUrl: f.dataUrl }); f.enviada = true; }
-    fecharModal(OBMODAL); OBMODAL = null; S.obs = null; render(); toast('Observação enviada');
-  } catch (e) { btn.disabled = false; btn.textContent = 'Enviar observação'; toast(e.message + ' (toque em Enviar de novo)', true); }
+    const passos = [{ action: 'salvarObservacao', params: { observacao: { id: OB.id, disciplina_id: OB.disc, local: OB.local, relacionada: OB.rel, texto: OB.texto } } }];
+    OB.fotos.forEach(f => passos.push({ action: 'uploadFoto', params: { id: f.id, tipo: 'observacao', observacao_id: OB.id, dataUrl: f.dataUrl } }));
+    await enfileirar('obs', 'Observação · ' + nomeDiscId(OB.disc) + (OB.local ? ' · ' + OB.local : ''), passos);
+    fecharModal(OBMODAL); OBMODAL = null; render();
+    toast('Observação guardada no aparelho. Enviando…');
+    processarFila();
+  } catch (e) { btn.disabled = false; toast('Não foi possível guardar neste aparelho: ' + e.message, true); }
 }
 async function obsAddFoto(id, input) {
   const arq = Array.from(input.files || []); input.value = '';
   if (!arq.length) return;
   try {
-    progresso('Enviando fotos…');
-    for (const a of arq) await enviarComRetry('uploadFoto', { id: uid(), tipo: 'observacao', observacao_id: id, dataUrl: await comprimirImagem(a, 1400, 0.8) });
-    progresso(null); S.obs = null; render(); toast('Foto(s) adicionada(s)');
+    progresso('Preparando fotos…');
+    const passos = [];
+    for (const a of arq) passos.push({ action: 'uploadFoto', params: { id: uid(), tipo: 'observacao', observacao_id: id, dataUrl: await comprimirImagem(a, 1400, 0.8) } });
+    await enfileirar('foto', 'Fotos da observação (' + passos.length + ')', passos);
+    progresso(null); toast('Foto(s) guardada(s). Enviando…'); processarFila();
   } catch (e) { progresso(null); toast(e.message, true); }
 }
 async function resolverObs(id, resolvida) {
@@ -1414,14 +1402,34 @@ async function atualizarPill() {
   const pill = $('#fila-pill'); if (!pill) return;
   let itens = [];
   try { itens = (await filaAll()).filter(i => i.usuario === S.usuario); } catch (e) { /* ignora */ }
-  S.filaCache = itens.map(i => i.registro);
+  S.filaCache = itens.map(i => i.registro).filter(Boolean); S.filaItens = itens;
   const erros = itens.filter(i => i.erro).length;
   pill.hidden = !itens.length;
   pill.className = 'pill-fila' + (erros ? ' erro' : '');
   pill.textContent = itens.length ? ('↑ ' + itens.length + ' na fila' + (erros ? ' · ' + erros + ' com erro' : '')) : '';
 }
 
+/** Fila geral de envio: cada item é uma lista de etapas (chamadas ao servidor) que sobe na ordem, quando houver internet. */
+async function enfileirar(tipo, titulo, passos) {
+  const it = { id: uid(), usuario: S.usuario, tipo: tipo, titulo: titulo, passos: passos, feitos: 0, criado: Date.now(), erro: null, registro: null, fotos: [] };
+  await filaPut(it); await atualizarPill();
+  return it;
+}
+function aguardandoHTML(tipos) {
+  const l = (S.filaItens || []).filter(i => tipos.indexOf(i.tipo) >= 0);
+  return l.length ? '<div class="card" style="border-style:dashed"><b>Aguardando envio (' + l.length + ')</b>' + l.map(i => '<div class="sub">↑ ' + h(i.titulo) + (i.erro ? ' · <span class="vencida">com erro, veja a fila</span>' : '') + '</div>').join('') + '</div>' : '';
+}
+
 async function enviarItemFila(it) {
+  if (it.passos) {
+    while (it.feitos < it.passos.length) {
+      const p = it.passos[it.feitos];
+      try { await api(p.action, p.params, 1); }
+      catch (e) { if (!(p.tolerante && e.servidor && !e.sessao)) throw e; } // etapa "tolerante": já feita antes ou não essencial
+      it.feitos++; await filaPut(it);
+    }
+    return;
+  }
   await api('salvarRegistro', { registro: it.registro }, 1); // repetir é seguro: o servidor reconhece o mesmo id
   it.enviadas = it.enviadas || [];
   for (const f of it.fotos) {
@@ -1432,7 +1440,7 @@ async function enviarItemFila(it) {
 }
 
 async function processarFila() {
-  if (filaRodando || !S.token) return;
+  if (filaRodando || !S.token || navigator.onLine === false) return;
   filaRodando = true; let enviados = 0;
   try {
     const itens = (await filaAll()).filter(i => i.usuario === S.usuario && !i.erro).sort((a, b) => a.criado - b.criado);
@@ -1447,8 +1455,10 @@ async function processarFila() {
     filaRodando = false;
     await atualizarPill();
     if (enviados) {
-      S.and = null; toast(enviados + ' registro(s) enviado(s)');
-      if (S.aba === 'and' && S.sub !== 'registrar') render(); else atualizarHintRev();
+      S.and = null; S.obs = null;
+      try { await carregar(); } catch (e) { /* mantém o que já está na tela */ }
+      toast(enviados + ' item(ns) enviado(s)');
+      render();
     }
   }
 }
@@ -1457,8 +1467,8 @@ setInterval(() => { if (S.token) processarFila(); }, 30000);
 
 async function abrirFila() {
   const itens = (await filaAll()).filter(i => i.usuario === S.usuario).sort((a, b) => a.criado - b.criado);
-  const corpo = (itens.length ? itens.map(i => '<div class="card"><div class="linha-item"><div class="info"><b>Apto ' + h(i.registro.apartamento) + ' · ' + h(i.registro.ponto_nome) + '</b>' +
-    '<div class="sub">' + i.fotos.length + ' foto(s) · ' + h(fmtDataHora(i.registro.capturado_em)) + (i.erro ? ' · <span class="vencida">Não enviado: ' + h(i.erro) + '</span>' : ' · aguardando envio') + '</div></div>' +
+  const corpo = (itens.length ? itens.map(i => '<div class="card"><div class="linha-item"><div class="info"><b>' + (i.registro ? 'Apto ' + h(i.registro.apartamento) + ' · ' + h(i.registro.ponto_nome) : h(i.titulo)) + '</b>' +
+    '<div class="sub">' + (i.registro ? i.fotos.length + ' foto(s) · ' + h(fmtDataHora(i.registro.capturado_em)) : (i.passos.length - i.feitos) + ' etapa(s) a enviar · ' + h(fmtDataHora(new Date(i.criado).toISOString().slice(0, 19).replace('T', ' ')))) + (i.erro ? ' · <span class="vencida">Não enviado: ' + h(i.erro) + '</span>' : ' · aguardando envio') + '</div></div>' +
     '<div class="acoes">' + (i.erro ? '<button class="btn sec sm" type="button" onclick="filaRetentar(\'' + i.id + '\')">Tentar de novo</button>' : '') +
     '<button class="btn perigo sm" type="button" onclick="filaDescartar(\'' + i.id + '\')">Descartar</button></div></div></div>').join('') : '<div class="vazio">Nada na fila.</div>') +
     '<p class="nota">Os registros ficam guardados neste aparelho e são enviados sozinhos quando houver internet.</p>';
@@ -1976,6 +1986,10 @@ function gerarPDFPendencias() {
 /* Início                                                              */
 /* ================================================================== */
 (function boot() {
+  if ('serviceWorker' in navigator) navigator.serviceWorker.register('./sw.js').catch(() => {});
+  try { if (navigator.storage && navigator.storage.persist) navigator.storage.persist(); } catch (e) { /* ignora */ }
+  window.addEventListener('online', () => { S.offline = false; renderFaixa(); });
+  document.addEventListener('visibilitychange', () => { if (!document.hidden && S.token) processarFila(); });
   precarregarLogo();
   melhorarSelect($('#lg-comp')); melhorarSelect($('#lg-user'));
   const salvo = ls.get('fvs_sessao');
