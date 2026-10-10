@@ -14,7 +14,7 @@
  * Cadastros → Usuários; só registram e veem as próprias fotos de andamento).
  */
 
-const VERSAO = '1.1.2';
+const VERSAO = '1.2.0';
 /** Enquanto true, usuário que AINDA NÃO tem senha definida entra sem senha. Quem já tem senha continua exigindo. */
 const PERMITIR_SEM_SENHA = true;
 const TZ = 'America/Sao_Paulo';
@@ -224,7 +224,7 @@ function configurarSenhas() {
   USUARIOS.forEach(function (u) {
     const s = SENHAS[u];
     if (!s) return;
-    if (s.length < 6) throw new Error('A senha de ' + u + ' precisa ter ao menos 6 caracteres.');
+    validarPin_(s);
     const sal = Utilities.getUuid();
     props_().setProperty('SENHA_' + u, sal + ':' + hashSenha_(s, sal));
     feitos.push(u);
@@ -250,16 +250,20 @@ function definirSenhasPeloMenu() {
   const feitos = [];
   for (let i = 0; i < USUARIOS.length; i++) {
     const u = USUARIOS[i];
-    const r = ui.prompt('Senha de ' + u, 'Digite a senha de ' + u + ' (mínimo 6 caracteres). Cancele para pular.', ui.ButtonSet.OK_CANCEL);
+    const r = ui.prompt('Senha de ' + u, 'Digite a senha de ' + u + ' (só números, de 4 a 8 dígitos). Cancele para pular.', ui.ButtonSet.OK_CANCEL);
     if (r.getSelectedButton() !== ui.Button.OK) continue;
     const s = String(r.getResponseText() || '');
-    if (s.length < 6) { ui.alert('A senha de ' + u + ' precisa ter ao menos 6 caracteres. Rode "Definir senhas" de novo.'); return; }
+    if (!/^\d{4,8}$/.test(s)) { ui.alert('A senha de ' + u + ' deve ter de 4 a 8 números. Rode "Definir senhas" de novo.'); return; }
     definirSenha_(u, s); feitos.push(u);
   }
   ui.alert(feitos.length ? 'Senhas definidas para: ' + feitos.join(', ') + '.' : 'Nenhuma senha foi alterada.');
 }
 
+/** Senha numérica de 4 a 8 dígitos. */
+function validarPin_(s) { if (!/^\d{4,8}$/.test(String(s))) throw new Error('A senha deve ter de 4 a 8 números.'); }
+
 function definirSenha_(nome, senha) {
+  validarPin_(senha);
   const sal = Utilities.getUuid();
   props_().setProperty('SENHA_' + nome, sal + ':' + hashSenha_(senha, sal));
 }
@@ -275,10 +279,18 @@ function infoUsuario_(nome) {
 
 /** Lista pública de nomes para a tela de login (só nomes, nada mais). */
 function listarUsuarios_() {
-  const nomes = USUARIOS.slice();
-  lerAba_('Usuarios').forEach(function (x) { if (x.ativo !== 'nao' && x.nome) nomes.push(x.nome); });
-  const sem = PERMITIR_SEM_SENHA ? nomes.filter(function (n) { return !props_().getProperty('SENHA_' + n); }) : [];
-  return { ok: true, usuarios: nomes, semSenha: sem };
+  const discs = lerAba_('Disciplinas').filter(function (d) { return d.ativo !== 'nao'; });
+  const nomeDisc = {}; discs.forEach(function (d) { nomeDisc[d.id] = d.nome; });
+  const lista = USUARIOS.map(function (n) { return { nome: n, competencias: ['Administração'] }; });
+  lerAba_('Usuarios').forEach(function (x) {
+    if (x.ativo === 'nao' || !x.nome) return;
+    const comp = String(x.disciplinas || '').split(',').filter(function (id) { return nomeDisc[id]; }).map(function (id) { return nomeDisc[id]; });
+    if (comp.length) lista.push({ nome: x.nome, competencias: comp });
+  });
+  const competencias = ['Administração'];
+  discs.forEach(function (d) { if (lista.some(function (u) { return u.competencias.indexOf(d.nome) >= 0; })) competencias.push(d.nome); });
+  const sem = PERMITIR_SEM_SENHA ? lista.map(function (u) { return u.nome; }).filter(function (n) { return !props_().getProperty('SENHA_' + n); }) : [];
+  return { ok: true, usuarios: lista.map(function (u) { return u.nome; }), lista: lista, competencias: competencias, semSenha: sem };
 }
 
 function login_(req) {
@@ -335,7 +347,7 @@ function setup() {
     if (!sh) sh = planilha.insertSheet(nome);
     // Texto puro: evita que a planilha converta datas/números e quebre os valores
     sh.getRange(1, 1, sh.getMaxRows(), cab.length).setNumberFormat('@');
-    sh.getRange(1, 1, 1, cab.length).setValues([cab]).setFontWeight('bold').setBackground('#43331e').setFontColor('#ffffff');
+    sh.getRange(1, 1, 1, cab.length).setValues([cab]).setFontWeight('bold').setBackground('#6b6f73').setFontColor('#ffffff');
     sh.setFrozenRows(1);
   });
   ['Sheet1', 'Página1', 'Planilha1'].forEach(function (n) {
@@ -349,8 +361,16 @@ function setup() {
   Logger.log('Setup concluído. Abas, pastas do Drive e exemplos prontos. Se for a primeira vez, o próximo passo é configurarSenhas().');
 }
 
+/** Garante as competências básicas (sem pontos): a Bárbara edita a lista depois em Cadastros → Disciplinas. */
+function garantirCompetencias_() {
+  const nomes = lerAba_('Disciplinas').map(function (d) { return String(d.nome).toLowerCase(); });
+  ['Hidráulica', 'Elétrica', 'Civil', 'Estrutura'].forEach(function (n) {
+    if (nomes.indexOf(n.toLowerCase()) < 0) inserir_('Disciplinas', { id: novoId_(), nome: n, ativo: 'sim' });
+  });
+}
+
 function semearAndamento_() {
-  if (lerAba_('Disciplinas').length) return;
+  if (lerAba_('Disciplinas').length) { garantirCompetencias_(); return; }
   const base = [
     ['Hidráulica', [
       ['Shaft aberto — prumadas', 'Caminho das prumadas antes de fechar o shaft'],
@@ -380,6 +400,7 @@ function semearAndamento_() {
       inserir_('PontosAndamento', { id: novoId_(), disciplina_id: id, ordem: String(i + 1), nome: p[0], descricao: p[1] });
     });
   });
+  garantirCompetencias_();
 }
 
 function semear_() {
@@ -450,10 +471,8 @@ function bootstrap_(req, u, info) {
   let pontos = out('PontosAndamento');
   if (info.perfil === 'encarregado') {
     // Encarregado só enxerga o necessário para registrar fotos
-    if (info.disciplinas.length) {
-      disc = disc.filter(function (d) { return info.disciplinas.indexOf(d.id) >= 0; });
-      pontos = pontos.filter(function (p) { return info.disciplinas.indexOf(p.disciplina_id) >= 0; });
-    }
+    disc = disc.filter(function (d) { return info.disciplinas.indexOf(d.id) >= 0; });
+    pontos = pontos.filter(function (p) { return info.disciplinas.indexOf(p.disciplina_id) >= 0; });
     disc = disc.filter(function (d) { return d.ativo !== 'nao'; });
     return Object.assign(base, {
       apartamentos: out('Apartamentos').filter(function (a) { return a.ativo !== 'nao'; }),
@@ -691,11 +710,13 @@ function uploadFoto_(req, u, info) {
   return { ok: true, id: id };
 }
 
-/** Encarregado só lê fotos de andamento que ele mesmo registrou. */
-function podeVerFoto_(foto, u, info) {
+/** Encarregado só lê fotos de andamento das competências (disciplinas) dele. */
+function podeVerFoto_(foto, u, info, regsCache) {
   if (info.perfil !== 'encarregado') return true;
   if (foto.tipo !== 'andamento') return false;
-  return foto.criado_por === u;
+  if (!regsCache.mapa) { regsCache.mapa = {}; lerAba_('Registros').forEach(function (r) { regsCache.mapa[r.id] = r; }); }
+  const r = regsCache.mapa[foto.registro_id];
+  return !!r && info.disciplinas.indexOf(r.disciplina_id) >= 0;
 }
 
 function dataUrlDaFoto_(foto) {
@@ -705,7 +726,7 @@ function dataUrlDaFoto_(foto) {
 
 function getFoto_(req, u, info) {
   const foto = lerAba_('Fotos').filter(function (x) { return x.id === String(req.id || ''); })[0];
-  if (!foto || !podeVerFoto_(foto, u, info)) throw new Error('Foto não encontrada.');
+  if (!foto || !podeVerFoto_(foto, u, info, {})) throw new Error('Foto não encontrada.');
   return { ok: true, id: foto.id, dataUrl: dataUrlDaFoto_(foto) };
 }
 
@@ -713,10 +734,10 @@ function getFoto_(req, u, info) {
 function getFotos_(req, u, info) {
   const ids = (req.ids || []).slice(0, 6).map(String);
   const todas = lerAba_('Fotos');
-  const fotos = {}; const falhas = [];
+  const fotos = {}; const falhas = []; const cacheR = {};
   ids.forEach(function (id) {
     const foto = todas.filter(function (x) { return x.id === id; })[0];
-    if (!foto || !podeVerFoto_(foto, u, info)) { falhas.push(id); return; }
+    if (!foto || !podeVerFoto_(foto, u, info, cacheR)) { falhas.push(id); return; }
     try { fotos[id] = dataUrlDaFoto_(foto); } catch (e) { falhas.push(id); }
   });
   return { ok: true, fotos: fotos, falhas: falhas };
@@ -792,7 +813,7 @@ function salvarRegistro_(req, u, info) {
   if (!apto) throw new Error('Informe o apartamento.');
   const disc = lerAba_('Disciplinas').filter(function (x) { return x.id === r.disciplina_id; })[0];
   if (!disc) throw new Error('Disciplina não encontrada.');
-  if (info.perfil === 'encarregado' && info.disciplinas.length && info.disciplinas.indexOf(disc.id) < 0) {
+  if (info.perfil === 'encarregado' && info.disciplinas.indexOf(disc.id) < 0) {
     throw new Error('Você não tem acesso a esta disciplina.');
   }
   let pontoId = ''; let pontoNome = '';
@@ -817,7 +838,7 @@ function salvarRegistro_(req, u, info) {
 
 function getAndamento_(req, u, info) {
   let regs = lerAba_('Registros').map(limpar_);
-  if (info.perfil === 'encarregado') regs = regs.filter(function (x) { return x.criado_por === u; });
+  if (info.perfil === 'encarregado') regs = regs.filter(function (x) { return info.disciplinas.indexOf(x.disciplina_id) >= 0; });
   const ids = {};
   regs.forEach(function (r) { ids[r.id] = true; });
   const fotos = lerAba_('Fotos').filter(function (f) { return f.tipo === 'andamento' && ids[f.registro_id]; })
@@ -855,8 +876,8 @@ function salvarUsuario_(req, u) {
   }
   const disciplinas = (d.disciplinas || []).map(String).filter(idValido_);
   const senha = String(d.senha || '');
-  if (!existente && senha.length < 6) throw new Error('A senha precisa ter ao menos 6 caracteres.');
-  if (senha && senha.length < 6) throw new Error('A senha precisa ter ao menos 6 caracteres.');
+  if (!existente && !senha && !PERMITIR_SEM_SENHA) throw new Error('Informe a senha (4 a 8 números).');
+  if (senha) validarPin_(senha);
   let id;
   if (existente) {
     id = existente.id;

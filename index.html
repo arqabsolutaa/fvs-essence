@@ -3,13 +3,13 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
-<meta name="theme-color" content="#43331e">
+<meta name="theme-color" content="#5f6368">
 <title>FVS · Essence Residence</title>
 <style>
 :root{
-  --marrom:#43331e; --dourado:#8c8467; --oliva:#5f7a3a; --oliva-claro:#e8eddc;
-  --fundo:#f6f3ec; --papel:#ffffff; --linha:#e3ddcd; --texto:#2b2418; --suave:#7a7360;
-  --nc:#a63d2f; --nc-claro:#f6e3df; --na:#8a8577; --na-claro:#eceae3; --alerta:#b58a2a; --alerta-claro:#f5ecd3;
+  --marrom:#5f6368; --dourado:#a3a7ab; --oliva:#5f7a3a; --oliva-claro:#e8eddc;
+  --fundo:#f5f4f0; --papel:#ffffff; --linha:#dcdcd8; --texto:#2e3033; --suave:#74777b;
+  --nc:#a63d2f; --nc-claro:#f6e3df; --na:#8a8d90; --na-claro:#ececea; --alerta:#b58a2a; --alerta-claro:#f5ecd3;
   --raio:12px;
 }
 *{box-sizing:border-box;-webkit-tap-highlight-color:transparent}
@@ -22,12 +22,26 @@ button{cursor:pointer}
 [hidden]{display:none!important}
 
 /* Login */
-#login{position:fixed;inset:0;z-index:1000;background:linear-gradient(rgba(35,27,15,.55),rgba(35,27,15,.82)),url(assets/capa_entrada_essence.jpg) center/cover var(--marrom);display:flex;align-items:center;justify-content:center;padding:20px}
-.login-box{background:rgba(250,247,240,.97);border-radius:16px;padding:28px 24px;width:100%;max-width:380px;box-shadow:0 20px 50px rgba(0,0,0,.35)}
-.login-box .marca{font-size:12px;letter-spacing:.18em;color:var(--dourado);text-transform:uppercase;font-weight:700}
-.login-box h1{font-size:24px;color:var(--marrom);margin:6px 0 4px}
-.login-box p{margin:0 0 18px;color:var(--suave);font-size:14px}
+#login{position:fixed;inset:0;z-index:1000;background:linear-gradient(rgba(30,32,34,.35),rgba(30,32,34,.55)),url(assets/capa-fundo.jpg) center 30%/cover #2b2d2f;display:flex;align-items:center;justify-content:center;padding:20px;overflow:auto}
+.login-box{background:rgba(245,244,240,.96);border-radius:16px;padding:28px 24px;width:100%;max-width:380px;box-shadow:0 20px 50px rgba(0,0,0,.45);backdrop-filter:blur(4px)}
+.login-box h1{font-size:22px;color:var(--marrom);margin:0 0 2px}
+.login-box p{margin:0 0 14px;color:var(--suave);font-size:14px}
 .login-box label{display:block;font-size:12px;font-weight:700;color:var(--suave);text-transform:uppercase;letter-spacing:.06em;margin:12px 0 4px}
+#lg-senha::placeholder{letter-spacing:normal;font-size:15px}
+#lg-senha{text-align:center;letter-spacing:.35em;font-size:22px;cursor:pointer;background:#fff}
+#teclado{position:fixed;inset:0;z-index:1100;background:rgba(30,32,34,.55);display:flex;align-items:flex-end;justify-content:center;padding:0}
+#teclado .tk{background:var(--fundo);width:100%;max-width:380px;border-radius:18px 18px 0 0;padding:14px 18px 20px;box-shadow:0 -10px 40px rgba(0,0,0,.35)}
+@media(min-height:700px){#teclado{align-items:center;padding:20px}#teclado .tk{border-radius:18px}}
+#teclado .tk-h{display:flex;align-items:center;justify-content:space-between;margin-bottom:6px;font-size:13px;font-weight:700;color:var(--suave);text-transform:uppercase;letter-spacing:.06em}
+#teclado .tk-h button{background:transparent;border:1px solid var(--linha);color:var(--marrom);border-radius:8px;width:38px;height:38px;font-size:22px;line-height:1}
+#teclado .tk-pontos{height:44px;display:flex;align-items:center;justify-content:center;gap:12px;margin:6px 0 10px}
+#teclado .tk-pontos i{width:14px;height:14px;border-radius:50%;border:2px solid var(--marrom);display:block}
+#teclado .tk-pontos i.on{background:var(--marrom)}
+#teclado .tk-grade{display:grid;grid-template-columns:repeat(3,1fr);gap:10px}
+#teclado .tk-grade button{height:62px;border-radius:14px;border:1px solid var(--linha);background:#fff;font-size:26px;font-weight:600;color:var(--texto)}
+#teclado .tk-grade button:active{background:var(--linha)}
+#teclado .tk-grade button.ok{background:var(--marrom);border-color:var(--marrom);color:#fff;font-size:17px}
+#teclado .tk-grade button.ap{font-size:22px;color:var(--suave)}
 .erro{background:var(--nc-claro);color:var(--nc);border-radius:8px;padding:9px 12px;font-size:14px;margin-top:12px}
 
 /* Campos */
@@ -50,7 +64,7 @@ input:focus,select:focus,textarea:focus{outline:2px solid var(--dourado);outline
 #topo .t1{font-weight:700;font-size:17px}
 #topo .t2{font-size:12px;color:#d8cfae;letter-spacing:.06em}
 #topo .quem{display:flex;align-items:center;gap:10px;font-size:14px}
-#topo .quem button{background:transparent;border:1px solid #8c8467;color:#fff;border-radius:8px;padding:6px 10px}
+#topo .quem button{background:transparent;border:1px solid #a3a7ab;color:#fff;border-radius:8px;padding:6px 10px}
 #menu{background:#fff;border-bottom:1px solid var(--linha);display:flex;gap:2px;overflow-x:auto;padding:0 8px;position:sticky;top:61px;z-index:40}
 #menu button{background:none;border:none;border-bottom:3px solid transparent;padding:13px 14px;font-weight:600;color:var(--suave);white-space:nowrap;display:flex;align-items:center;gap:6px}
 #menu button.on{color:var(--marrom);border-bottom-color:var(--dourado)}
@@ -99,7 +113,7 @@ table.tab td{padding:9px 10px;border-top:1px solid var(--linha);vertical-align:t
 .modal-box.largo{max-width:860px}
 .modal-h{display:flex;align-items:center;justify-content:space-between;gap:10px;background:var(--marrom);color:#fff;padding:12px 16px;position:sticky;top:0;z-index:2}
 .modal-h h3{font-size:17px}
-.modal-h .x{background:transparent;border:1px solid #8c8467;color:#fff;border-radius:8px;width:38px;height:38px;font-size:22px;line-height:1}
+.modal-h .x{background:transparent;border:1px solid #a3a7ab;color:#fff;border-radius:8px;width:38px;height:38px;font-size:22px;line-height:1}
 .modal-b{padding:16px}
 .modal-f{padding:12px 16px;border-top:1px solid var(--linha);display:flex;gap:10px;justify-content:flex-end;flex-wrap:wrap;background:#fff;position:sticky;bottom:0}
 .campo-v{margin-bottom:12px}
@@ -176,15 +190,18 @@ canvas#sig{width:100%;height:170px;background:#fff;border:2px dashed var(--doura
     <img src="assets/logo-absoluta.png" alt="Absoluta Construtora e Incorporadora" style="display:block;height:46px;margin:0 0 14px">
     <h1>FVS · Essence Residence</h1>
     <p>Ficha de Verificação de Serviço</p>
-    <label for="lg-user">Usuário</label>
+    <label for="lg-comp">Competência</label>
+    <select id="lg-comp" onchange="trocarCompetencia()"><option>Administração</option></select>
+    <label for="lg-user">Nome</label>
     <select id="lg-user" onchange="atualizarCampoSenha()"><option>Bárbara</option><option>Gabriel</option></select>
     <div class="nota" id="lg-nota" hidden>Sem internet: não é possível entrar agora.</div>
     <div id="lg-senha-box"><label for="lg-senha">Senha</label>
-    <input id="lg-senha" type="password" autocomplete="current-password"></div>
+    <input id="lg-senha" type="password" readonly inputmode="none" placeholder="Toque para digitar" onclick="abrirTeclado()"></div>
     <div id="lg-erro" class="erro" hidden></div>
     <button id="lg-btn" class="btn bloco" style="margin-top:16px" type="submit">Entrar</button>
   </form>
 </div>
+<div id="teclado" hidden><div class="tk"><div class="tk-h"><span>Digite sua senha</span><button type="button" aria-label="Fechar" onclick="fecharTeclado()">×</button></div><div class="tk-pontos" id="tk-pontos"></div><div class="tk-grade" id="tk-grade"></div></div></div>
 
 <div id="app" hidden>
   <div id="topo">
@@ -326,11 +343,12 @@ async function entrar(ev) {
   const btn = $('#lg-btn'); const er = $('#lg-erro');
   er.hidden = true; btn.disabled = true; btn.textContent = 'Entrando…';
   try {
-    if (!semSenhaAtual() && !$('#lg-senha').value) throw new Error('Digite a senha.');
-    const j = await api('login', { usuario: $('#lg-user').value, senha: $('#lg-senha').value }, 0);
+    if (!semSenhaAtual() && !LG.pin) throw new Error('Digite a senha.');
+    const j = await api('login', { usuario: $('#lg-user').value, senha: LG.pin }, 0);
     S.token = j.token; S.usuario = j.usuario; S.admin = j.admin; S.perfil = j.perfil;
     ls.set('fvs_sessao', JSON.stringify({ token: j.token, usuario: j.usuario, admin: j.admin, perfil: j.perfil }));
-    $('#lg-senha').value = '';
+    LG.pin = ''; $('#lg-senha').value = '';
+    ls.set('fvs_ult', JSON.stringify({ comp: $('#lg-comp').value, nome: $('#lg-user').value }));
     await iniciar();
   } catch (e) {
     er.textContent = e.message; er.hidden = false;
@@ -339,17 +357,61 @@ async function entrar(ev) {
   }
 }
 
-function semSenhaAtual() { try { return JSON.parse(ls.get('fvs_semsenha') || '[]').indexOf($('#lg-user').value) >= 0; } catch (e) { return false; } }
-function atualizarCampoSenha() { $('#lg-senha-box').hidden = semSenhaAtual(); }
-/** Lista de nomes da tela de login (guardada no aparelho para funcionar mesmo sem sinal). */
+/* ---- Login: competência → nome → senha numérica (teclado na tela) ---- */
+const LG = { pin: '', lista: [{ nome: 'Bárbara', competencias: ['Administração'] }, { nome: 'Gabriel', competencias: ['Administração'] }], competencias: ['Administração'], semSenha: [] };
+function semSenhaAtual() { return LG.semSenha.indexOf($('#lg-user').value) >= 0; }
+function atualizarCampoSenha() { LG.pin = ''; $('#lg-senha').value = ''; $('#lg-senha-box').hidden = semSenhaAtual(); }
+function trocarCompetencia() {
+  const comp = $('#lg-comp').value; const sel = $('#lg-user'); const atual = sel.value;
+  const nomes = LG.lista.filter(u => u.competencias.indexOf(comp) >= 0).map(u => u.nome);
+  sel.innerHTML = nomes.map(n => '<option>' + h(n) + '</option>').join('');
+  if (nomes.indexOf(atual) >= 0) sel.value = atual;
+  atualizarCampoSenha();
+}
+function desenharLogin(restaurar) {
+  const sc = $('#lg-comp'); const atual = sc.value;
+  sc.innerHTML = LG.competencias.map(n => '<option>' + h(n) + '</option>').join('');
+  let ult = null; try { ult = JSON.parse(ls.get('fvs_ult') || 'null'); } catch (e) { }
+  if (restaurar && ult && LG.competencias.indexOf(ult.comp) >= 0) sc.value = ult.comp; else if (LG.competencias.indexOf(atual) >= 0) sc.value = atual;
+  trocarCompetencia();
+  if (restaurar && ult && Array.from($('#lg-user').options).some(o => o.value === ult.nome)) { $('#lg-user').value = ult.nome; atualizarCampoSenha(); }
+}
+function montarTeclado() {
+  const g = $('#tk-grade'); if (g.children.length) return;
+  const teclas = ['1', '2', '3', '4', '5', '6', '7', '8', '9', '⌫', '0', 'Entrar'];
+  g.innerHTML = teclas.map(t => '<button type="button" class="' + (t === 'Entrar' ? 'ok' : (t === '⌫' ? 'ap' : '')) + '" onclick="tecla(\'' + t + '\')">' + t + '</button>').join('');
+}
+function pintarPontos() {
+  const n = Math.max(4, LG.pin.length);
+  $('#tk-pontos').innerHTML = Array.from({ length: n }, (_, i) => '<i class="' + (i < LG.pin.length ? 'on' : '') + '"></i>').join('');
+  $('#lg-senha').value = '•'.repeat(LG.pin.length);
+}
+function abrirTeclado() { if (semSenhaAtual()) return; montarTeclado(); pintarPontos(); $('#teclado').hidden = false; }
+function fecharTeclado() { $('#teclado').hidden = true; }
+function tecla(t) {
+  if (t === '⌫') LG.pin = LG.pin.slice(0, -1);
+  else if (t === 'Entrar') { fecharTeclado(); if (LG.pin) $('#lg-btn').click(); return; }
+  else if (LG.pin.length < 8) LG.pin += t;
+  pintarPontos();
+}
+document.addEventListener('keydown', ev => {
+  if ($('#teclado').hidden) return;
+  if (/^\d$/.test(ev.key)) tecla(ev.key); else if (ev.key === 'Backspace') tecla('⌫'); else if (ev.key === 'Enter') tecla('Entrar');
+});
+
+/** Competências e nomes da tela de login (guardados no aparelho para funcionar mesmo sem sinal). */
 async function popularUsuarios() {
-  const sel = $('#lg-user');
-  const desenhar = nomes => { const atual = sel.value; sel.innerHTML = nomes.map(n => '<option>' + h(n) + '</option>').join(''); if (nomes.indexOf(atual) >= 0) sel.value = atual; };
-  const cache = ls.get('fvs_usuarios');
-  if (cache) { try { desenhar(JSON.parse(cache)); atualizarCampoSenha(); } catch (e) { ls.del('fvs_usuarios'); } }
+  const aplicar = j => {
+    if (j.lista && j.competencias) { LG.lista = j.lista; LG.competencias = j.competencias; }
+    else if (j.usuarios) { LG.lista = j.usuarios.map(n => ({ nome: n, competencias: ['Administração'] })); LG.competencias = ['Administração']; }
+    LG.semSenha = j.semSenha || [];
+  };
+  const cache = ls.get('fvs_login');
+  if (cache) { try { aplicar(JSON.parse(cache)); } catch (e) { ls.del('fvs_login'); } }
+  desenharLogin(true);
   try {
     const j = await api('listarUsuarios', {}, 0);
-    desenhar(j.usuarios); ls.set('fvs_usuarios', JSON.stringify(j.usuarios)); ls.set('fvs_semsenha', JSON.stringify(j.semSenha || [])); atualizarCampoSenha();
+    aplicar(j); ls.set('fvs_login', JSON.stringify(j)); desenharLogin(true);
   } catch (e) { /* mantém a lista guardada */ }
 }
 
@@ -753,7 +815,7 @@ function desenharAssinatura() {
 function iniciarAssinatura() {
   const c = $('#sig'); const dpr = window.devicePixelRatio || 1; const r = c.getBoundingClientRect();
   c.width = Math.round(r.width * dpr); c.height = Math.round(r.height * dpr);
-  const g = c.getContext('2d'); g.scale(dpr, dpr); g.lineWidth = 2.2; g.lineCap = 'round'; g.lineJoin = 'round'; g.strokeStyle = '#2b2418';
+  const g = c.getContext('2d'); g.scale(dpr, dpr); g.lineWidth = 2.2; g.lineCap = 'round'; g.lineJoin = 'round'; g.strokeStyle = '#2e3033';
   let desenhando = false; let ult = null;
   const pos = ev => { const b = c.getBoundingClientRect(); return { x: ev.clientX - b.left, y: ev.clientY - b.top }; };
   c.onpointerdown = ev => { ev.preventDefault(); c.setPointerCapture(ev.pointerId); desenhando = true; ult = pos(ev); g.beginPath(); g.moveTo(ult.x, ult.y); g.lineTo(ult.x + 0.1, ult.y + 0.1); g.stroke(); E.sigDesenhada = true; };
@@ -1185,7 +1247,7 @@ function salvarEstadoRG() { ls.set('fvs_rg', JSON.stringify({ apto: RG.apto, dis
 function agoraLocal() { const d = new Date(); return hoje() + ' ' + pad(d.getHours()) + ':' + pad(d.getMinutes()) + ':' + pad(d.getSeconds()); }
 
 function viewAndamento() {
-  const subs = ehEnc() ? [['registrar', 'Registrar'], ['registros', 'Meus registros']] : [['registrar', 'Registrar'], ['registros', 'Registros'], ['cobertura', 'Cobertura']];
+  const subs = ehEnc() ? [['registrar', 'Registrar'], ['registros', 'Registros']] : [['registrar', 'Registrar'], ['registros', 'Registros'], ['cobertura', 'Cobertura']];
   if (!subs.some(s => s[0] === S.sub)) S.sub = 'registrar';
   const corpo = S.sub === 'registrar' ? viewRegistrar() : (S.sub === 'registros' ? viewRegistros() : viewCobertura());
   return '<div class="abas-int">' + subs.map(s => '<button type="button" class="' + (S.sub === s[0] ? 'on' : '') + '" onclick="S.sub=\'' + s[0] + '\';render()">' + s[1] + '</button>').join('') + '</div>' + corpo;
@@ -1316,7 +1378,7 @@ function viewRegistros() {
     corpo = rec.slice(0, 40).map(r => cardRegistro(r, rev[r.id], fp[r.id] || [], true)).join('') +
       (rec.length > 40 ? '<p class="nota">Mostrando os 40 mais recentes de ' + rec.length + '. Escolha um apartamento para ver tudo, organizado por ponto.</p>' : '');
   }
-  return '<div class="titulo-sec"><h2>' + (enc ? 'Meus registros' : 'Registros de andamento') + '</h2><div class="acoes">' +
+  return '<div class="titulo-sec"><h2>' + (enc ? 'Registros da competência' : 'Registros de andamento') + '</h2><div class="acoes">' +
     '<button class="btn sec sm" type="button" onclick="S.and=null;render()">Atualizar</button>' +
     (!enc ? '<button class="btn sm" type="button" onclick="gerarPDFDossie()">Dossiê em PDF</button>' : '') + '</div></div>' +
     '<div class="barra"><div class="campo"><label>Apartamento</label><select onchange="S.filtros.reg.apto=this.value;render()">' + opcoes(aptos, F.apto, 'Todos') + '</select></div>' +
@@ -1359,7 +1421,7 @@ function viewCobertura() {
 /* ---- Cadastros: disciplinas, pontos e usuários ---- */
 function viewDisciplinas() {
   const lista = S.d.disciplinas.slice().sort((a, b) => (ativo(b) - ativo(a)) || nat(a.nome, b.nome));
-  return '<div class="titulo-sec" style="margin-top:22px"><h2>Disciplinas e pontos de andamento</h2><button class="btn" type="button" onclick="abrirDisciplina()">+ Nova disciplina</button></div>' +
+  return '<div class="titulo-sec" style="margin-top:22px"><h2>Competências e pontos de andamento</h2><button class="btn" type="button" onclick="abrirDisciplina()">+ Nova competência</button></div>' +
     (lista.length ? lista.map(d => '<div class="card" style="' + (ativo(d) ? '' : 'opacity:.6') + '"><div class="linha-item"><div class="info"><b>' + h(d.nome) + '</b><div class="sub">' + S.d.pontos.filter(p => p.disciplina_id === d.id).length + ' pontos' + (ativo(d) ? '' : ' · arquivada') + '</div></div>' +
       '<div class="acoes"><button class="btn sec sm" type="button" onclick="abrirDisciplina(\'' + d.id + '\')">Editar</button><button class="btn sec sm" type="button" onclick="alternarAtivo(\'Disciplinas\',\'' + d.id + '\')">' + (ativo(d) ? 'Arquivar' : 'Reativar') + '</button></div></div></div>').join('')
       : '<div class="vazio">Nenhuma disciplina cadastrada.</div>');
@@ -1412,17 +1474,17 @@ function abrirUsuario(id) {
   const discs = S.d.disciplinas.filter(d => ativo(d) || marcadas.indexOf(d.id) >= 0).sort((a, b) => nat(a.nome, b.nome));
   const el = abrirModal(u ? 'Editar encarregado' : 'Novo encarregado',
     '<div class="campo-v"><label>Nome (aparece na lista de login)</label><input type="text" id="us-nome" value="' + h(u ? u.nome : '') + '" ' + (u ? 'disabled' : '') + '></div>' +
-    '<div class="campo-v"><label>' + (u ? 'Nova senha (deixe em branco para manter)' : 'Senha (mínimo 6 caracteres)') + '</label><input type="text" id="us-senha" autocomplete="off" autocapitalize="off"></div>' +
-    '<div class="campo-v"><label>Disciplinas liberadas</label><div class="checks">' + discs.map(d => '<label><input type="checkbox" value="' + h(d.id) + '" ' + (marcadas.indexOf(d.id) >= 0 ? 'checked' : '') + '>' + h(d.nome) + '</label>').join('') + '</div>' +
-    '<p class="nota">Sem marcar nenhuma, ele vê todas as disciplinas.</p></div>' +
+    '<div class="campo-v"><label>' + (u ? 'Nova senha (deixe em branco para manter)' : 'Senha (só números, 4 a 8 dígitos)') + '</label><input type="text" id="us-senha" inputmode="numeric" pattern="[0-9]*" maxlength="8" autocomplete="off"></div>' +
+    '<div class="campo-v"><label>Competências liberadas</label><div class="checks">' + discs.map(d => '<label><input type="checkbox" value="' + h(d.id) + '" ' + (marcadas.indexOf(d.id) >= 0 ? 'checked' : '') + '>' + h(d.nome) + '</label>').join('') + '</div>' +
+    '<p class="nota">Ele vê e registra apenas nas competências marcadas, incluindo o que os colegas da mesma competência registrarem. Marque ao menos uma.</p></div>' +
     (u ? '<p class="nota">O nome não pode ser alterado: os registros ficam ligados a ele.</p>' : ''),
     { rodape: '<button class="btn" id="us-salvar" type="button">Salvar</button>' });
   $('#us-salvar', el).onclick = async () => {
     const nome = $('#us-nome', el).value.trim(); const senha = $('#us-senha', el).value;
     if (nome.length < 2) return toast('Informe o nome.', true);
-    if (!u && senha.length < 6) return toast('A senha precisa ter ao menos 6 caracteres.', true);
-    if (u && senha && senha.length < 6) return toast('A senha precisa ter ao menos 6 caracteres.', true);
+    if (senha && !/^\d{4,8}$/.test(senha)) return toast('A senha deve ter de 4 a 8 números.', true);
     const discs = Array.from(el.querySelectorAll('.checks input:checked')).map(i => i.value);
+    if (!discs.length) return toast('Marque ao menos uma competência.', true);
     const btn = $('#us-salvar', el); btn.disabled = true;
     try {
       await enviarComRetry('salvarUsuario', { usuario: { id: u ? u.id : '', nome: nome, senha: senha, disciplinas: discs } });
@@ -1434,7 +1496,7 @@ function abrirUsuario(id) {
 /* ================================================================== */
 /* PDFs (jsPDF)                                                        */
 /* ================================================================== */
-const COR = { marrom: [67, 51, 30], dourado: [140, 132, 103], oliva: [95, 122, 58], nc: [166, 61, 47], na: [138, 133, 119], claro: [246, 243, 236] };
+const COR = { marrom: [95, 99, 104], dourado: [120, 124, 128], oliva: [95, 122, 58], nc: [166, 61, 47], na: [138, 141, 144], claro: [245, 244, 240] };
 function novoPDF() {
   if (!window.jspdf) throw new Error('A biblioteca de PDF não carregou. Verifique a internet e recarregue a página.');
   return new window.jspdf.jsPDF({ unit: 'mm', format: 'a4' });
