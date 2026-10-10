@@ -22,18 +22,18 @@ button{cursor:pointer}
 [hidden]{display:none!important}
 
 /* Login */
-#login{position:fixed;inset:0;z-index:1000;background:#1e2124;display:flex;align-items:flex-end;justify-content:center;padding:20px;overflow:auto}
-#login::before{content:'';position:fixed;inset:-30px;background:url(assets/capa-fundo.jpg) center/cover;filter:blur(28px) brightness(.45)}
-#login::after{content:'';position:fixed;left:0;right:0;top:0;height:125vw;background:url(assets/capa-fundo.jpg) center/100% 100% no-repeat;pointer-events:none;-webkit-mask-image:linear-gradient(to bottom,#000 80%,transparent);mask-image:linear-gradient(to bottom,#000 80%,transparent)}
-@media(min-aspect-ratio:1/1){#login{align-items:center;justify-content:flex-end;padding-right:5vw}#login::after{right:auto;left:3vw;top:0;bottom:0;height:auto;width:80vh;-webkit-mask-image:linear-gradient(to right,transparent,#000 12%,#000 88%,transparent);mask-image:linear-gradient(to right,transparent,#000 12%,#000 88%,transparent)}}
-.login-box{position:relative;z-index:1;background:rgba(245,244,240,.96);border-radius:16px;padding:28px 24px;width:100%;max-width:380px;box-shadow:0 20px 50px rgba(0,0,0,.45);backdrop-filter:blur(4px)}
-.login-box h1{font-size:22px;color:var(--marrom);margin:0 0 2px}
+#login{position:fixed;inset:0;z-index:1000;background:var(--fundo);display:flex;flex-direction:column;overflow:auto}
+#login .lg-img{flex:0 0 42vh;background:#1e2124 url(assets/capa-fundo.jpg) center 35%/cover no-repeat}
+#login .lg-lado{flex:1;display:flex;align-items:center;justify-content:center;padding:24px 20px}
+@media(min-aspect-ratio:1/1){#login{flex-direction:row}#login .lg-img{flex:0 0 46%;background-position:center}#login .lg-lado{flex:1}}
+.login-box{width:100%;max-width:340px}
+.login-box h1{font-size:20px;color:var(--texto);margin:0 0 2px}
 .login-box p{margin:0 0 14px;color:var(--suave);font-size:14px}
 .login-box label{display:block;font-size:12px;font-weight:700;color:var(--suave);text-transform:uppercase;letter-spacing:.06em;margin:12px 0 4px}
 #lg-senha::placeholder{letter-spacing:normal;font-size:15px}
 #lg-senha{text-align:center;letter-spacing:.35em;font-size:22px;cursor:pointer;background:#fff}
 #teclado{position:fixed;inset:0;z-index:1100;background:rgba(30,32,34,.55);display:flex;align-items:flex-end;justify-content:center;padding:0}
-#teclado .tk{background:var(--fundo);width:100%;max-width:380px;border-radius:18px 18px 0 0;padding:14px 18px 20px;box-shadow:0 -10px 40px rgba(0,0,0,.35)}
+#teclado .tk{background:var(--fundo);width:100%;max-width:380px;border-radius:18px 18px 0 0;padding:14px 18px 20px;border:1px solid var(--linha)}
 @media(min-height:700px){#teclado{align-items:center;padding:20px}#teclado .tk{border-radius:18px}}
 #teclado .tk-h{display:flex;align-items:center;justify-content:space-between;margin-bottom:6px;font-size:13px;font-weight:700;color:var(--suave);text-transform:uppercase;letter-spacing:.06em}
 #teclado .tk-h button{background:transparent;border:1px solid var(--linha);color:var(--marrom);border-radius:8px;width:38px;height:38px;font-size:22px;line-height:1}
@@ -54,7 +54,8 @@ input:focus,select:focus,textarea:focus{outline:2px solid var(--dourado);outline
 
 /* Botões */
 .btn{display:inline-flex;align-items:center;justify-content:center;gap:6px;border:1px solid var(--marrom);background:var(--marrom);color:#fff;padding:10px 16px;border-radius:10px;font-weight:600;min-height:44px}
-.btn:hover{background:#56432a}
+.btn:hover{background:#3f4246;border-color:#3f4246}
+.btn:active{background:#2f3235;border-color:#2f3235}
 .btn.sec{background:#fff;color:var(--marrom)}
 .btn.sec:hover{background:var(--fundo)}
 .btn.perigo{background:#fff;color:var(--nc);border-color:var(--nc)}
@@ -189,8 +190,10 @@ canvas#sig{width:100%;height:170px;background:#fff;border:2px dashed var(--doura
 <body>
 
 <div id="login">
+  <div class="lg-img"></div>
+  <div class="lg-lado">
   <form class="login-box" onsubmit="entrar(event)">
-    <img src="assets/logo-absoluta.png" alt="Absoluta Construtora e Incorporadora" style="display:block;height:46px;margin:0 0 14px">
+    <img src="assets/logo-absoluta.png" alt="Absoluta Construtora e Incorporadora" style="display:block;height:42px;margin:0 0 18px">
     <h1>FVS · Essence Residence</h1>
     <p>Ficha de Verificação de Serviço</p>
     <label for="lg-comp">Competência</label>
@@ -203,6 +206,7 @@ canvas#sig{width:100%;height:170px;background:#fff;border:2px dashed var(--doura
     <div id="lg-erro" class="erro" hidden></div>
     <button id="lg-btn" class="btn bloco" style="margin-top:16px" type="submit">Entrar</button>
   </form>
+  </div>
 </div>
 <div id="teclado" hidden><div class="tk"><div class="tk-h"><span>Digite sua senha</span><button type="button" aria-label="Fechar" onclick="fecharTeclado()">×</button></div><div class="tk-pontos" id="tk-pontos"></div><div class="tk-grade" id="tk-grade"></div></div></div>
 
