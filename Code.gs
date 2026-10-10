@@ -14,7 +14,7 @@
  * Cadastros → Usuários; só registram e veem as próprias fotos de andamento).
  */
 
-const VERSAO = '1.4.0';
+const VERSAO = '1.6.0';
 /** Enquanto true, usuário que AINDA NÃO tem senha definida entra sem senha. Quem já tem senha continua exigindo. */
 const PERMITIR_SEM_SENHA = false;
 const TZ = 'America/Sao_Paulo';
@@ -28,7 +28,7 @@ const MAX_FOTO_BYTES = 6 * 1024 * 1024;
 
 const ABAS = {
   Modelos: ['id', 'nome', 'descricao', 'ativo', 'criado_em', 'atualizado_em', 'disciplina_id'],
-  ModeloItens: ['id', 'modelo_id', 'ordem', 'descricao', 'criterio'],
+  ModeloItens: ['id', 'modelo_id', 'ordem', 'descricao', 'criterio', 'exige_foto'],
   Fornecedores: ['id', 'nome', 'servicos', 'contato', 'ativo'],
   Apartamentos: ['id', 'codigo', 'tipo', 'ativo'],
   FVS: ['id', 'numero', 'data', 'apartamento', 'modelo_id', 'modelo_nome', 'fornecedor_id', 'fornecedor_nome',
@@ -531,7 +531,7 @@ function salvarModelo_(req, u) {
   itens.forEach(function (it, i) {
     const d = texto_(it.descricao, 300).trim();
     if (!d) return;
-    novos.push({ id: idValido_(it.id) ? it.id : novoId_(), modelo_id: id, ordem: String(novos.length + 1), descricao: d, criterio: texto_(it.criterio, 500).trim() });
+    novos.push({ id: idValido_(it.id) ? it.id : novoId_(), modelo_id: id, ordem: String(novos.length + 1), descricao: d, criterio: texto_(it.criterio, 500).trim(), exige_foto: it.exige_foto ? 'sim' : '' });
   });
   if (!novos.length) throw new Error('O modelo precisa de ao menos um item com descrição.');
   reescrever_('ModeloItens', outros.concat(novos));
@@ -1013,13 +1013,13 @@ function adicionarServicos_(req, u) {
   let nM = 0; let nP = 0; let jaTinha = 0;
   servicos.forEach(function (sv) {
     const nome = texto_(sv.nome, 120).trim();
-    const itens = (sv.itens || []).map(function (it) { return { d: texto_(it[0], 300).trim(), c: texto_(it[1], 500).trim() }; }).filter(function (it) { return it.d; });
+    const itens = (sv.itens || []).map(function (it) { return { d: texto_(it[0], 300).trim(), c: texto_(it[1], 500).trim(), f: it[2] ? 'sim' : '' }; }).filter(function (it) { return it.d; });
     if (!nome) return;
     if (nomesM[nome.toLowerCase()]) { jaTinha++; }
     else if (itens.length) {
       const id = novoId_();
       inserir_('Modelos', { id: id, nome: nome, descricao: texto_(sv.descricao, 500), ativo: 'sim', criado_em: agora, atualizado_em: agora, disciplina_id: disc.id });
-      itens.forEach(function (it, i) { inserir_('ModeloItens', { id: novoId_(), modelo_id: id, ordem: String(i + 1), descricao: it.d, criterio: it.c }); });
+      itens.forEach(function (it, i) { inserir_('ModeloItens', { id: novoId_(), modelo_id: id, ordem: String(i + 1), descricao: it.d, criterio: it.c, exige_foto: it.f }); });
       nomesM[nome.toLowerCase()] = true; nM++;
     }
     (sv.pontos || []).forEach(function (p) {
