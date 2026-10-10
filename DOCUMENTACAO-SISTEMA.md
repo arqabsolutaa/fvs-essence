@@ -150,3 +150,4 @@ Gerados no navegador com jsPDF, no estilo Essence (marrom `#43331e`, dourado `#8
 
 - **09/10/2026 — v1.0.0**: primeira entrega. Login, modelos editáveis (3 exemplos), cadastros, FVS com fotos e assinatura, pendências com reinspeção, PDFs, histórico, auditoria e backup.
 - **09/10/2026 — v1.1.0**: modo Registro de andamento (disciplinas, pontos, registros com fotos e legenda, revisões, cobertura, dossiê PDF), perfis (admin/completo/encarregado) com login próprio, cadastro de usuários, fila offline. **Mudou o `Code.gs`**: colar o arquivo completo, rodar `setup()` de novo (cria as abas novas e repara cabeçalhos) e reimplantar com "Nova versão".
+- **10/10/2026**: endereço do Apps Script (`/exec`) configurado em `API_URL`. Primeira implantação feita pela Bárbara.
