@@ -22,8 +22,8 @@ button{cursor:pointer}
 [hidden]{display:none!important}
 
 /* Login */
-#login{position:fixed;inset:0;z-index:1000;background:var(--marrom);display:flex;align-items:center;justify-content:center;padding:20px}
-.login-box{background:var(--papel);border-radius:16px;padding:28px 24px;width:100%;max-width:380px;box-shadow:0 20px 50px rgba(0,0,0,.35)}
+#login{position:fixed;inset:0;z-index:1000;background:linear-gradient(rgba(35,27,15,.55),rgba(35,27,15,.82)),url(assets/capa_entrada_essence.jpg) center/cover var(--marrom);display:flex;align-items:center;justify-content:center;padding:20px}
+.login-box{background:rgba(250,247,240,.97);border-radius:16px;padding:28px 24px;width:100%;max-width:380px;box-shadow:0 20px 50px rgba(0,0,0,.35)}
 .login-box .marca{font-size:12px;letter-spacing:.18em;color:var(--dourado);text-transform:uppercase;font-weight:700}
 .login-box h1{font-size:24px;color:var(--marrom);margin:6px 0 4px}
 .login-box p{margin:0 0 18px;color:var(--suave);font-size:14px}
@@ -173,7 +173,7 @@ canvas#sig{width:100%;height:170px;background:#fff;border:2px dashed var(--doura
 
 <div id="login">
   <form class="login-box" onsubmit="entrar(event)">
-    <div class="marca">Absoluta Construtora</div>
+    <img src="assets/logo-absoluta.png" alt="Absoluta Construtora e Incorporadora" style="display:block;height:46px;margin:0 0 14px">
     <h1>FVS · Essence Residence</h1>
     <p>Ficha de Verificação de Serviço</p>
     <label for="lg-user">Usuário</label>
@@ -1439,11 +1439,16 @@ function novoPDF() {
   if (!window.jspdf) throw new Error('A biblioteca de PDF não carregou. Verifique a internet e recarregue a página.');
   return new window.jspdf.jsPDF({ unit: 'mm', format: 'a4' });
 }
+const LOGO = { data: null };
+function precarregarLogo() {
+  fetch('assets/logo-absoluta.png').then(r => r.blob()).then(b => { const fr = new FileReader(); fr.onload = () => { LOGO.data = fr.result; }; fr.readAsDataURL(b); }).catch(() => {});
+}
 function pdfCabecalho(doc, titulo, numero) {
   doc.setFillColor(...COR.marrom); doc.rect(0, 0, 210, 30, 'F');
+  if (LOGO.data) { doc.setFillColor(255, 255, 255); doc.roundedRect(160, 4, 38, 22, 2, 2, 'F'); doc.addImage(LOGO.data, 'PNG', 162, 6.5, 34, 11.2); }
   doc.setTextColor(255, 255, 255); doc.setFont('helvetica', 'bold'); doc.setFontSize(15); doc.text(titulo, 14, 14);
   doc.setFont('helvetica', 'normal'); doc.setFontSize(10); doc.text('Essence Residence · Absoluta Construtora e Incorporadora', 14, 22);
-  if (numero) { doc.setFont('helvetica', 'bold'); doc.setFontSize(14); doc.text(numero, 196, 14, { align: 'right' }); }
+  if (numero) { doc.setFont('helvetica', 'bold'); doc.setFontSize(10); doc.setTextColor(...COR.marrom); doc.text(numero, 179, 23, { align: 'center' }); }
   doc.setDrawColor(...COR.dourado); doc.setLineWidth(0.8); doc.line(0, 30, 210, 30);
   doc.setTextColor(40, 40, 40);
 }
@@ -1664,6 +1669,7 @@ function gerarPDFPendencias() {
 /* Início                                                              */
 /* ================================================================== */
 (function boot() {
+  precarregarLogo();
   const salvo = ls.get('fvs_sessao');
   if (salvo) {
     try {

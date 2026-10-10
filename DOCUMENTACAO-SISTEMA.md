@@ -143,7 +143,6 @@ Gerados no navegador com jsPDF, no estilo Essence (marrom `#43331e`, dourado `#8
 - Não há PDF de auditoria nem registro de valores antes/depois (existe só o log de ações e o conteúdo excluído).
 - Fila offline vive no navegador do aparelho: limpar dados do site apaga o que ainda não subiu. Registros pendentes aparecem com contador no topo.
 - Não há vínculo entre uma FVS e os registros de andamento do mesmo local.
-- Sem logo da Absoluta nos PDFs (o repositório novo ainda não tem a imagem).
 - Não foi testado ainda contra o Google real: o backend foi validado por simulação (incluindo perfis, fila, idempotência) e o front por checagem de sintaxe. A primeira implantação serve de teste de ponta a ponta.
 
 ## 12. Histórico de mudanças
@@ -153,3 +152,4 @@ Gerados no navegador com jsPDF, no estilo Essence (marrom `#43331e`, dourado `#8
 - **10/10/2026**: endereço do Apps Script (`/exec`) configurado em `API_URL`. Primeira implantação feita pela Bárbara.
 - **10/10/2026 — v1.1.1**: menu "FVS" na planilha para definir senhas e ativar o backup, sem editar código. Mudou o `Code.gs` (colar de novo; reimplantar não é necessário para o menu).
 - **10/10/2026 — v1.1.2**: modo sem senha (`PERMITIR_SEM_SENHA = true` no `Code.gs`). Usuário que ainda não tem senha definida entra só escolhendo o nome (o campo de senha some na tela de login). Assim que uma senha é definida (menu FVS → Definir senhas), ela passa a ser exigida para aquele usuário. Para desligar o modo, mudar a constante para `false`. **Atenção**: o repositório é público e contém o endereço do Apps Script; sem senha, quem tiver esse endereço consegue chamar a API. Definir senhas antes de entrar dados reais.
+- **10/10/2026 — v1.1.3**: identidade visual alinhada ao Essence: tela de entrada com a foto do prédio (`assets/capa_entrada_essence.jpg`) e logo da Absoluta (`assets/logo-absoluta.png`, copiados do repositório do dashboard); logo da Absoluta no cabeçalho de todos os PDFs. Só mudou o `index.html` e `assets/` (não precisa reimplantar o Apps Script).
