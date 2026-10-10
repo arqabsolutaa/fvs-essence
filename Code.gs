@@ -14,7 +14,9 @@
  * Cadastros → Usuários; só registram e veem as próprias fotos de andamento).
  */
 
-const VERSAO = '1.1.1';
+const VERSAO = '1.1.2';
+/** Enquanto true, usuário que AINDA NÃO tem senha definida entra sem senha. Quem já tem senha continua exigindo. */
+const PERMITIR_SEM_SENHA = true;
 const TZ = 'America/Sao_Paulo';
 const USUARIOS = ['Bárbara', 'Gabriel']; // usuários fixos; encarregados ficam na aba Usuarios
 const ADMIN = 'Bárbara';
@@ -275,7 +277,8 @@ function infoUsuario_(nome) {
 function listarUsuarios_() {
   const nomes = USUARIOS.slice();
   lerAba_('Usuarios').forEach(function (x) { if (x.ativo !== 'nao' && x.nome) nomes.push(x.nome); });
-  return { ok: true, usuarios: nomes };
+  const sem = PERMITIR_SEM_SENHA ? nomes.filter(function (n) { return !props_().getProperty('SENHA_' + n); }) : [];
+  return { ok: true, usuarios: nomes, semSenha: sem };
 }
 
 function login_(req) {
@@ -285,6 +288,12 @@ function login_(req) {
   const cache = CacheService.getScriptCache();
   if (cache.get('BLOQ_' + u)) return erro_('Muitas tentativas. Aguarde 10 minutos.');
   const reg = props_().getProperty('SENHA_' + u);
+  if (!reg && PERMITIR_SEM_SENHA) {
+    const tk = Utilities.getUuid() + Utilities.getUuid();
+    cache.put('TK_' + tk, u, SESSAO_SEGUNDOS);
+    registrarLog_(u, 'login', '', 'sem senha');
+    return { ok: true, token: tk, usuario: u, perfil: info.perfil, admin: info.perfil === 'admin', disciplinas: info.disciplinas };
+  }
   if (!reg) return erro_(info.perfil === 'encarregado' ? 'Senha não definida. Peça para a Bárbara redefinir.' : 'Senha ainda não configurada. Rode configurarSenhas() no Apps Script.');
   const partes = reg.split(':');
   if (hashSenha_(String(req.senha || ''), partes[0]) !== partes[1]) {

@@ -177,10 +177,10 @@ canvas#sig{width:100%;height:170px;background:#fff;border:2px dashed var(--doura
     <h1>FVS · Essence Residence</h1>
     <p>Ficha de Verificação de Serviço</p>
     <label for="lg-user">Usuário</label>
-    <select id="lg-user"><option>Bárbara</option><option>Gabriel</option></select>
+    <select id="lg-user" onchange="atualizarCampoSenha()"><option>Bárbara</option><option>Gabriel</option></select>
     <div class="nota" id="lg-nota" hidden>Sem internet: não é possível entrar agora.</div>
-    <label for="lg-senha">Senha</label>
-    <input id="lg-senha" type="password" autocomplete="current-password" required>
+    <div id="lg-senha-box"><label for="lg-senha">Senha</label>
+    <input id="lg-senha" type="password" autocomplete="current-password"></div>
     <div id="lg-erro" class="erro" hidden></div>
     <button id="lg-btn" class="btn bloco" style="margin-top:16px" type="submit">Entrar</button>
   </form>
@@ -326,6 +326,7 @@ async function entrar(ev) {
   const btn = $('#lg-btn'); const er = $('#lg-erro');
   er.hidden = true; btn.disabled = true; btn.textContent = 'Entrando…';
   try {
+    if (!semSenhaAtual() && !$('#lg-senha').value) throw new Error('Digite a senha.');
     const j = await api('login', { usuario: $('#lg-user').value, senha: $('#lg-senha').value }, 0);
     S.token = j.token; S.usuario = j.usuario; S.admin = j.admin; S.perfil = j.perfil;
     ls.set('fvs_sessao', JSON.stringify({ token: j.token, usuario: j.usuario, admin: j.admin, perfil: j.perfil }));
@@ -338,15 +339,17 @@ async function entrar(ev) {
   }
 }
 
+function semSenhaAtual() { try { return JSON.parse(ls.get('fvs_semsenha') || '[]').indexOf($('#lg-user').value) >= 0; } catch (e) { return false; } }
+function atualizarCampoSenha() { $('#lg-senha-box').hidden = semSenhaAtual(); }
 /** Lista de nomes da tela de login (guardada no aparelho para funcionar mesmo sem sinal). */
 async function popularUsuarios() {
   const sel = $('#lg-user');
   const desenhar = nomes => { const atual = sel.value; sel.innerHTML = nomes.map(n => '<option>' + h(n) + '</option>').join(''); if (nomes.indexOf(atual) >= 0) sel.value = atual; };
   const cache = ls.get('fvs_usuarios');
-  if (cache) { try { desenhar(JSON.parse(cache)); } catch (e) { ls.del('fvs_usuarios'); } }
+  if (cache) { try { desenhar(JSON.parse(cache)); atualizarCampoSenha(); } catch (e) { ls.del('fvs_usuarios'); } }
   try {
     const j = await api('listarUsuarios', {}, 0);
-    desenhar(j.usuarios); ls.set('fvs_usuarios', JSON.stringify(j.usuarios));
+    desenhar(j.usuarios); ls.set('fvs_usuarios', JSON.stringify(j.usuarios)); ls.set('fvs_semsenha', JSON.stringify(j.semSenha || [])); atualizarCampoSenha();
   } catch (e) { /* mantém a lista guardada */ }
 }
 
