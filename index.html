@@ -1187,9 +1187,10 @@ function abrirApartamentos() {
   const el = abrirModal('Adicionar apartamentos / locais',
     '<div class="campo-v"><label>Tipo</label><select id="ap-tipo"><option>Apartamento</option><option>Área comum</option></select></div>' +
     '<div class="campo-v"><label>Lista (um por linha ou separados por vírgula)</label><textarea id="ap-lista" style="min-height:140px" placeholder="11&#10;12&#10;21"></textarea></div>' +
-    '<button class="btn sec sm" type="button" id="ap-sug" style="margin-bottom:10px">Preencher com locais da Torre</button>' +
+    '<div style="display:flex;gap:8px;flex-wrap:wrap;margin-bottom:10px"><button class="btn sec sm" type="button" id="ap-un">Preencher unidades (11 a 162)</button><button class="btn sec sm" type="button" id="ap-sug">Preencher com locais da Torre</button></div>' +
     '<p class="nota">Códigos que já existem são ignorados.</p>',
     { rodape: '<button class="btn" id="ap-salvar" type="button">Adicionar</button>' });
+  $('#ap-un', el).onclick = () => { const l = []; for (let a = 1; a <= 16; a++) { l.push(a + '1'); l.push(a + '2'); } $('#ap-tipo', el).value = 'Apartamento'; $('#ap-lista', el).value = l.join('\n'); };
   $('#ap-sug', el).onclick = () => { $('#ap-tipo', el).value = 'Área comum'; $('#ap-lista', el).value = ['Térreo', 'Hall de entrada', 'Garagem', 'Subsolo', 'Escadaria', 'Elevadores', 'Shafts da torre', 'Barrilete', 'Ático', 'Casa de máquinas', 'Cobertura', 'Fachada', 'Muros de divisa', 'Salão de festas', 'Piscina', 'Portaria', 'Jardim e áreas externas'].join('\n'); };
   $('#ap-salvar', el).onclick = async () => {
     const codigos = $('#ap-lista', el).value.split(/[\n,;]+/).map(s => s.trim()).filter(Boolean);
