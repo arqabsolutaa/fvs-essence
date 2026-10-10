@@ -547,7 +547,7 @@ async function carregar() {
 function renderFaixa() {
   const el = $('#faixa'); if (!el) return;
   el.hidden = !S.offline;
-  el.innerHTML = S.offline ? '<span>Sem conexão com o servidor. ' + (S.perfil ? 'Pode continuar trabalhando: checklists, fotos e observações ficam guardados neste aparelho e sobem sozinhos quando a internet voltar.' : '') + '</span><button type="button" onclick="tentarReconectar()">Tentar de novo</button>' : '';
+  el.innerHTML = S.offline ? '<span>Sem conexão com o servidor. ' + (S.perfil ? 'Sem conexão. O que você registrar sobe sozinho quando a internet voltar.' : '') + '</span><button type="button" onclick="tentarReconectar()">Tentar de novo</button>' : '';
 }
 async function tentarReconectar() {
   try { await carregar(); S.and = null; render(); processarFila(); if (!S.offline) toast('Conectado'); } catch (e) { toast(e.message, true); }
@@ -906,7 +906,7 @@ function desenharAssinatura() {
     box.innerHTML = '<img class="sig-img" data-foto="' + h(E.sigExistenteId) + '" alt="Assinatura"><div style="margin-top:8px"><button class="btn sec sm" type="button" onclick="E.sigRefazer=true;desenharAssinatura()">Refazer assinatura</button></div>';
     hidratarFotos(box); return;
   }
-  box.innerHTML = '<canvas id="sig"></canvas><div class="nota" style="margin:6px 0">Assine com o dedo ou a caneta no quadro acima.</div>' +
+  box.innerHTML = '<canvas id="sig"></canvas>' +
     '<button class="btn sec sm" type="button" onclick="limparAssinatura()">Limpar</button>';
   iniciarAssinatura();
 }
@@ -1097,7 +1097,7 @@ async function salvarReinspecao() {
 function viewModelos() {
   const lista = S.d.modelos.slice().sort((a, b) => (ativo(b) - ativo(a)) || nat(a.nome, b.nome));
   return '<div class="titulo-sec"><h2>Modelos de checklist</h2><button class="btn" type="button" onclick="abrirModelo()">+ Novo modelo</button></div>' +
-    '<p class="nota" style="margin-top:0">Cada modelo é um serviço com seus itens e critérios. FVS já feitas guardam uma cópia dos itens, então editar um modelo não altera o que já foi registrado.</p>' +
+    '' +
     (lista.length ? lista.map(m => {
       const n = S.d.itens.filter(i => i.modelo_id === m.id).length;
       return '<div class="card" style="' + (ativo(m) ? '' : 'opacity:.6') + '"><div class="linha-item"><div class="info"><b>' + h(m.nome) + '</b><div class="sub">' + (m.disciplina_id ? h(nomeDiscId(m.disciplina_id)) + (m.encarregado ? ' (' + h(m.encarregado) + ')' : '') + ' · ' : 'Sem disciplina · ') + escopoTxt(m.escopo) + ' · ' + n + ' itens' + (m.descricao ? ' · ' + h(m.descricao) : '') + (ativo(m) ? '' : ' · arquivado') + '</div></div>' +
@@ -1188,7 +1188,7 @@ function abrirApartamentos() {
     '<div class="campo-v"><label>Tipo</label><select id="ap-tipo"><option>Apartamento</option><option>Área comum</option></select></div>' +
     '<div class="campo-v"><label>Lista (um por linha ou separados por vírgula)</label><textarea id="ap-lista" style="min-height:140px" placeholder="11&#10;12&#10;21"></textarea></div>' +
     '<div style="display:flex;gap:8px;flex-wrap:wrap;margin-bottom:10px"><button class="btn sec sm" type="button" id="ap-un">Preencher unidades (11 a 162)</button><button class="btn sec sm" type="button" id="ap-sug">Preencher com locais da Torre</button></div>' +
-    '<p class="nota">Códigos que já existem são ignorados.</p>',
+    '',
     { rodape: '<button class="btn" id="ap-salvar" type="button">Adicionar</button>' });
   $('#ap-un', el).onclick = () => { const l = []; for (let a = 1; a <= 16; a++) { l.push(a + '1'); l.push(a + '2'); } $('#ap-tipo', el).value = 'Apartamento'; $('#ap-lista', el).value = l.join('\n'); };
   $('#ap-sug', el).onclick = () => { $('#ap-tipo', el).value = 'Área comum'; $('#ap-lista', el).value = ['Térreo', 'Hall de entrada', 'Garagem', 'Subsolo', 'Escadaria', 'Elevadores', 'Shafts da torre', 'Barrilete', 'Ático', 'Casa de máquinas', 'Cobertura', 'Fachada', 'Muros de divisa', 'Salão de festas', 'Piscina', 'Portaria', 'Jardim e áreas externas'].join('\n'); };
@@ -1248,7 +1248,7 @@ function viewObs() {
   const F = S.filtros.obs;
   const novo = soLeitura() ? '' : '<button class="btn" type="button" onclick="abrirNovaObs()">+ Nova observação</button>';
   const cab = '<div class="titulo-sec"><h2>Observações gerais</h2><div class="acoes"><button class="btn sec sm" type="button" onclick="S.obs=null;render()">Atualizar</button>' + novo + '</div></div>' +
-    '<p class="nota" style="margin-top:0">Avisos e reclamações com foto: algo danificado, entulho em local errado, falta de acesso. Vai direto para a administração.</p>';
+    '';
   if (!S.obs) return cab + aguardandoHTML(['obs', 'foto']) + '<div class="vazio">Carregando…</div>';
   const discs = S.d.disciplinas.slice().sort((a, b) => nat(a.nome, b.nome));
   const fp = {}; S.obs.fotos.forEach(f => { (fp[f.observacao_id] = fp[f.observacao_id] || []).push(f); });
@@ -1334,7 +1334,7 @@ function viewBiblioteca() {
   if (BB.enc && encs.indexOf(BB.enc) < 0) BB.enc = '';
   const total = LIB.reduce((n, a) => n + a.servicos.length, 0);
   return '<div class="titulo-sec"><h2>Biblioteca de serviços</h2></div>' +
-    '<p class="nota" style="margin-top:0">' + total + ' serviços prontos, com itens e critérios. Escolha a disciplina de destino, marque os serviços e toque em Adicionar: os checklists e os pontos de foto aparecem na página dela. Os itens são curtos (Conforme, Não conforme ou N.A.); os marcados com foto obrigatória só salvam com foto. Depois você pode editar tudo em Modelos e Cadastros. Revise a lista com a engenharia.</p>' +
+    '' +
     '<div class="card"><div class="grid2"><div class="campo-v"><label>Disciplina</label><select onchange="BB.disc=this.value;BB.enc=\'\';render()">' + opcoes(discs.map(d => [d.id, d.nome]), BB.disc, 'Selecione…') + '</select></div>' +
     '<div class="campo-v"><label>Encarregado</label><select ' + (BB.disc ? '' : 'disabled') + ' onchange="BB.enc=this.value;render()">' + opcoes(encs, BB.enc, 'Todos da disciplina') + '</select></div></div>' +
     '<div class="campo-v" style="margin:0"><label>Onde se aplica</label><select onchange="BB.escopo=this.value;render()">' + opcoes(OPC_ONDE, BB.escopo, 'Torre e unidades') + '</select></div>' +
@@ -1499,7 +1499,7 @@ async function abrirFila() {
     '<div class="sub">' + (i.registro ? i.fotos.length + ' foto(s) · ' + h(fmtDataHora(i.registro.capturado_em)) : (i.passos.length - i.feitos) + ' etapa(s) a enviar · ' + h(fmtDataHora(new Date(i.criado).toISOString().slice(0, 19).replace('T', ' ')))) + (i.erro ? ' · <span class="vencida">Não enviado: ' + h(i.erro) + '</span>' : ' · aguardando envio') + '</div></div>' +
     '<div class="acoes">' + (i.erro ? '<button class="btn sec sm" type="button" onclick="filaRetentar(\'' + i.id + '\')">Tentar de novo</button>' : '') +
     '<button class="btn perigo sm" type="button" onclick="filaDescartar(\'' + i.id + '\')">Descartar</button></div></div></div>').join('') : '<div class="vazio">Nada na fila.</div>') +
-    '<p class="nota">Os registros ficam guardados neste aparelho e são enviados sozinhos quando houver internet.</p>';
+    '';
   const el = abrirModal('Fila de envio', corpo, { rodape: '<button class="btn" type="button" id="fila-enviar">Enviar agora</button>' });
   el.classList.add('m-fila');
   $('#fila-enviar', el).onclick = async () => { const b = $('#fila-enviar', el); b.disabled = true; b.textContent = 'Enviando…'; await processarFila(); fecharModal(el); if ((await filaAll()).some(i => i.usuario === S.usuario)) abrirFila(); };
@@ -1582,7 +1582,7 @@ function viewRegistrar() {
     '<label class="btn-foto g">Tirar foto<input type="file" accept="image/*" capture="environment" hidden onchange="rgAddFotos(this)"></label>' +
     '<label class="btn-foto g">Galeria<input type="file" accept="image/*" multiple hidden onchange="rgAddFotos(this)"></label></div></div>' +
     '<button class="btn bloco" type="button" onclick="rgSalvar()">Guardar registro</button>' +
-    '<p class="nota" style="margin-bottom:0">O registro fica guardado neste aparelho e é enviado sozinho. Sem internet, ele espera na fila.</p></div>';
+    '</div>';
 }
 function atualizarHintRev() {
   const el = $('#rg-hint'); if (!el) return;
@@ -1653,7 +1653,7 @@ function viewRegistros() {
   } else {
     const rec = lista.slice().sort((a, b) => (b.capturado_em + b.criado_em).localeCompare(a.capturado_em + a.criado_em));
     corpo = rec.slice(0, 40).map(r => cardRegistro(r, rev[r.id], fp[r.id] || [], true)).join('') +
-      (rec.length > 40 ? '<p class="nota">Mostrando os 40 mais recentes de ' + rec.length + '. Escolha um apartamento para ver tudo, organizado por ponto.</p>' : '');
+      '';
   }
   return '<div class="titulo-sec"><h2>' + (enc ? 'Registros da disciplina' : 'Registros de andamento') + '</h2><div class="acoes">' +
     '<button class="btn sec sm" type="button" onclick="S.and=null;render()">Atualizar</button>' +
@@ -1661,7 +1661,7 @@ function viewRegistros() {
     '<div class="barra"><div class="campo"><label>Apartamento</label><select onchange="S.filtros.reg.apto=this.value;render()">' + opcoes(aptos, F.apto, 'Todos') + '</select></div>' +
     '<div class="campo"><label>Disciplina</label><select onchange="S.filtros.reg.disc=this.value;S.filtros.reg.ponto=\'\';render()">' + opcoes(discs.map(d => [d.id, d.nome]), F.disc, 'Todas') + '</select></div>' +
     '<div class="campo"><label>Ponto</label><select ' + (F.disc ? '' : 'disabled') + ' onchange="S.filtros.reg.ponto=this.value;render()">' + opcoes(pontos.map(p => [p.id, p.nome]), F.ponto, 'Todos') + '</select></div></div>' +
-    (!enc && F.apto ? '<p class="nota" style="margin-top:0">O dossiê em PDF usa o apartamento e a disciplina escolhidos acima.</p>' : '') + corpo;
+    corpo;
 }
 async function excluirRegistro(id) {
   if (!(await confirmar('Excluir este registro e as fotos? O conteúdo fica preservado no histórico de exclusões.', 'Excluir', true))) return;
@@ -1692,7 +1692,7 @@ function viewCobertura() {
     '<div class="barra"><div class="campo"><label>Disciplina</label><select onchange="S.filtros.cob.disc=this.value;render()">' + opcoes(discs.map(d => [d.id, d.nome]), F.disc, 'Selecione') + '</select></div></div>' +
     '<div class="kpis"><div class="kpi"><b>' + pct + '%</b><span>Pontos registrados</span></div><div class="kpi"><b>' + feitos + ' / ' + total + '</b><span>Apto × ponto</span></div></div>' +
     (pontos.length && aptos.length ? '<div class="rolar"><table class="tab cob"><thead><tr><th>Apto</th>' + pontos.map(p => '<th title="' + h(p.nome) + '">' + h(p.nome) + '</th>').join('') + '<th>Total</th></tr></thead><tbody>' + linhas + '</tbody></table></div>' +
-      '<p class="nota">O número é a quantidade de registros (revisões) daquele ponto. Toque num número para ver as fotos.</p>' : '<div class="vazio">Sem pontos ou apartamentos cadastrados.</div>');
+      '' : '<div class="vazio">Sem pontos ou apartamentos cadastrados.</div>');
 }
 
 /* ---- Cadastros: disciplinas, pontos e usuários ---- */
@@ -1712,7 +1712,7 @@ function abrirDisciplina(id) {
     '<div class="campo-v"><label>Nome da disciplina</label><input type="text" value="' + h(DM.nome) + '" oninput="DM.nome=this.value" placeholder="Ex.: Hidráulica"></div>' +
     '<div class="sec-t">Pontos da obra (o que o encarregado vai fotografar)</div><div id="dm-pontos"></div>' +
     '<button class="btn sec" type="button" onclick="dmAdd()">+ Adicionar ponto</button>' +
-    '<p class="nota">Registros já feitos guardam o nome do ponto, então renomear ou remover um ponto não apaga o histórico.</p>',
+    '',
     { largo: true, rodape: '<button class="btn" id="dm-salvar" type="button" onclick="salvarDisciplina()">Salvar disciplina</button>' });
   desenharDM();
 }
@@ -1744,7 +1744,7 @@ function viewUsuarios() {
     '<div class="card"><b>Gabriel</b> <span class="sub">consulta: vê tudo, não altera nada</span></div>' +
     lista.map(u => '<div class="card" style="' + (ativo(u) ? '' : 'opacity:.6') + '"><div class="linha-item"><div class="info"><b>' + h(u.nome) + '</b><div class="sub">' + h(perfilTxt(u)) + (ativo(u) ? '' : ' · arquivado') + '</div></div>' +
       '<div class="acoes"><button class="btn sec sm" type="button" onclick="abrirUsuario(\'' + u.id + '\')">Editar</button><button class="btn sec sm" type="button" onclick="alternarAtivo(\'Usuarios\',\'' + u.id + '\')">' + (ativo(u) ? 'Arquivar' : 'Reativar') + '</button></div></div></div>').join('') +
-    '<p class="nota">Encarregados registram e veem só as disciplinas deles. Consulta (Gabriel, Jailton) vê tudo, mas não registra, edita nem apaga. Arquivar bloqueia o acesso na hora; só a Bárbara faz isso.</p>';
+    '';
 }
 function abrirUsuario(id) {
   const u = id ? S.d.usuarios.filter(x => x.id === id)[0] : null;
@@ -1755,8 +1755,8 @@ function abrirUsuario(id) {
     '<div class="campo-v"><label>' + (u ? 'Nova senha (deixe em branco para manter)' : 'Senha (só números, 4 a 8 dígitos)') + '</label><input type="text" id="us-senha" inputmode="numeric" pattern="[0-9]*" maxlength="8" autocomplete="off"></div>' +
     '<div class="campo-v"><label>Perfil</label><select id="us-perfil"><option value="encarregado">Encarregado: só as disciplinas marcadas</option><option value="consulta">Consulta: vê tudo, não altera nada</option></select></div>' +
     '<div id="us-discs" class="campo-v"><label>Disciplinas liberadas</label><div class="checks">' + discs.map(d => '<label><input type="checkbox" value="' + h(d.id) + '" ' + (marcadas.indexOf(d.id) >= 0 ? 'checked' : '') + '>' + h(d.nome) + '</label>').join('') + '</div>' +
-    '<p class="nota">Ele vê e registra apenas nas disciplinas marcadas, incluindo o que os colegas da mesma disciplina registrarem. Marque ao menos uma.</p></div>' +
-    (u ? '<p class="nota">O nome não pode ser alterado: os registros ficam ligados a ele.</p>' : ''),
+    '</div>' +
+    '',
     { rodape: '<button class="btn" id="us-salvar" type="button">Salvar</button>' });
   const sp = $('#us-perfil', el); sp.value = u && (u.perfil === 'completo' || u.perfil === 'consulta') ? 'consulta' : 'encarregado';
   const ajustarPerfil = () => { $('#us-discs', el).hidden = sp.value === 'consulta'; };
