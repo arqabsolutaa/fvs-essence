@@ -14,7 +14,7 @@
  * Cadastros → Usuários; só registram e veem as próprias fotos de andamento).
  */
 
-const VERSAO = '1.1.0';
+const VERSAO = '1.1.1';
 const TZ = 'America/Sao_Paulo';
 const USUARIOS = ['Bárbara', 'Gabriel']; // usuários fixos; encarregados ficam na aba Usuarios
 const ADMIN = 'Bárbara';
@@ -229,6 +229,32 @@ function configurarSenhas() {
   });
   Logger.log(feitos.length ? 'Senhas gravadas para: ' + feitos.join(', ') + '. Agora apague as senhas do código e salve.'
                            : 'Nenhuma senha preenchida. Digite as senhas em SENHAS, rode de novo e depois apague.');
+}
+
+
+/**
+ * Menu "FVS" na planilha: define as senhas por janelas de pergunta, sem editar o código.
+ * Aparece ao recarregar a planilha (depois de colar este arquivo).
+ */
+function onOpen() {
+  SpreadsheetApp.getUi().createMenu('FVS')
+    .addItem('Definir senhas', 'definirSenhasPeloMenu')
+    .addItem('Ativar backup diário', 'criarGatilhoBackupDiario')
+    .addToUi();
+}
+
+function definirSenhasPeloMenu() {
+  const ui = SpreadsheetApp.getUi();
+  const feitos = [];
+  for (let i = 0; i < USUARIOS.length; i++) {
+    const u = USUARIOS[i];
+    const r = ui.prompt('Senha de ' + u, 'Digite a senha de ' + u + ' (mínimo 6 caracteres). Cancele para pular.', ui.ButtonSet.OK_CANCEL);
+    if (r.getSelectedButton() !== ui.Button.OK) continue;
+    const s = String(r.getResponseText() || '');
+    if (s.length < 6) { ui.alert('A senha de ' + u + ' precisa ter ao menos 6 caracteres. Rode "Definir senhas" de novo.'); return; }
+    definirSenha_(u, s); feitos.push(u);
+  }
+  ui.alert(feitos.length ? 'Senhas definidas para: ' + feitos.join(', ') + '.' : 'Nenhuma senha foi alterada.');
 }
 
 function definirSenha_(nome, senha) {

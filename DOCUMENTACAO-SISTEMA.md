@@ -37,8 +37,8 @@ Sistema **separado** do Dashboard Essence Residence (repositório `arqabsolutaa/
 1. Criar uma planilha Google nova (em branco) e abrir Extensões → Apps Script.
 2. Colar todo o `Code.gs` e salvar.
 3. Rodar `setup()` (autorizar os acessos pedidos). Cria as abas, as pastas do Drive e 3 modelos de exemplo.
-4. Rodar `configurarSenhas()`: antes, digitar as senhas dentro de `SENHAS` no código; rodar; **apagar as senhas do código e salvar de novo**. Só o hash fica guardado (nas Propriedades do Script).
-5. Rodar `criarGatilhoBackupDiario()`.
+4. Definir as senhas: recarregar a planilha e usar o menu **FVS → Definir senhas** (janelas de pergunta, sem editar o código). Só o hash fica guardado (nas Propriedades do Script). A função `configurarSenhas()` do editor continua existindo como alternativa.
+5. Menu **FVS → Ativar backup diário** (ou rodar `criarGatilhoBackupDiario()`).
 6. Implantar → Nova implantação → tipo **Aplicativo da Web** → Executar como **Eu** → Quem tem acesso **Qualquer pessoa** → copiar o endereço `.../exec`.
 7. Colar esse endereço em `API_URL` no `index.html` (Claude faz isso e sobe).
 
@@ -151,3 +151,4 @@ Gerados no navegador com jsPDF, no estilo Essence (marrom `#43331e`, dourado `#8
 - **09/10/2026 — v1.0.0**: primeira entrega. Login, modelos editáveis (3 exemplos), cadastros, FVS com fotos e assinatura, pendências com reinspeção, PDFs, histórico, auditoria e backup.
 - **09/10/2026 — v1.1.0**: modo Registro de andamento (disciplinas, pontos, registros com fotos e legenda, revisões, cobertura, dossiê PDF), perfis (admin/completo/encarregado) com login próprio, cadastro de usuários, fila offline. **Mudou o `Code.gs`**: colar o arquivo completo, rodar `setup()` de novo (cria as abas novas e repara cabeçalhos) e reimplantar com "Nova versão".
 - **10/10/2026**: endereço do Apps Script (`/exec`) configurado em `API_URL`. Primeira implantação feita pela Bárbara.
+- **10/10/2026 — v1.1.1**: menu "FVS" na planilha para definir senhas e ativar o backup, sem editar código. Mudou o `Code.gs` (colar de novo; reimplantar não é necessário para o menu).
