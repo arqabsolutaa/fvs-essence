@@ -55,9 +55,10 @@ Sistema **separado** do Dashboard Essence Residence (repositório `arqabsolutaa/
 | Perfil | Pode |
 |---|---|
 | `admin` (Bárbara) | Tudo: FVS, andamento, cadastros, usuários, histórico, exclusões |
-| `completo` (Gabriel, Jailton) | FVS, andamento, cadastros, todas as disciplinas. Não vê histórico, usuários nem exclui. Gabriel é fixo no código; os demais são criados em Cadastros → Usuários com perfil "Coordenação" |
-| `encarregado` | **Só** registrar andamento e ver **todos os registros das competências dele** (inclui os dos colegas da mesma competência), nunca de outra competência |
+| `consulta` (Gabriel, Jailton) | **Somente leitura**: vê checklists, pendências, fotos e observações de todas as disciplinas e gera PDFs. Não cria, edita, apaga nem reinspeciona nada (bloqueado no servidor). Não vê histórico nem usuários. Gabriel é fixo no código; os demais são criados em Cadastros → Usuários com perfil "Consulta" (linhas antigas com perfil `completo` valem como `consulta`) |
+| `encarregado` | Na(s) disciplina(s) dele, e só nelas: preencher e salvar **checklists** (e reinspecionar as pendências deles), registrar **fotos** de andamento e escrever **observações gerais**. Vê também o que os colegas da mesma disciplina registraram. Nunca vê outra disciplina, nem cadastros, histórico ou exclusões |
 
+- A Bárbara tem controle total: bloqueia logins (Arquivar), edita ou apaga qualquer checklist, foto, registro ou observação, e adiciona fotos a qualquer registro.
 - A Bárbara cria e arquiva usuários em Cadastros → Usuários (nome, perfil, disciplinas liberadas, senha). Usuário arquivado perde o acesso na hora (o servidor confere a cada chamada).
 - As restrições são aplicadas no **servidor** (tabela de permissões por ação), não só na tela.
 
@@ -77,16 +78,17 @@ Todas as células são texto puro (a planilha não converte datas nem números).
 
 | Aba | Conteúdo |
 |---|---|
-| `Modelos` | Serviços verificáveis (nome, descrição, ativo) |
+| `Modelos` | Serviços verificáveis (nome, descrição, ativo, `disciplina_id`: quem usa o checklist) |
 | `ModeloItens` | Itens e critérios de cada modelo, em ordem |
 | `Fornecedores` | Nome, serviços, contato, ativo |
 | `Apartamentos` | Código, tipo (Apartamento / Área comum), ativo |
-| `FVS` | Cabeçalho da ficha: número `FVS-0001`, data, apto, serviço, fornecedor, responsável, situação, assinatura (nome) |
+| `FVS` | (inclui `disciplina_id`, herdada do modelo) Cabeçalho da ficha: número `FVS-0001`, data, apto, serviço, fornecedor, responsável, situação, assinatura (nome) |
 | `FVS_Itens` | Cópia dos itens no momento da FVS (descrição, critério, resultado C/NC/NA, observação) |
 | `Pendencias` | Uma por item não conforme: responsável, prazo, status, reinspeções |
 | `Fotos` | Metadados das fotos (item, reinspeção, assinatura, registro de andamento) e id do arquivo no Drive |
 | `Disciplinas` | Disciplinas do andamento (nome, ativo) |
 | `PontosAndamento` | Pontos fotografáveis de cada disciplina, com ordem |
+| `ObservacoesGerais` | Avisos/reclamações por disciplina: local, relacionada a, texto, status (Aberta/Resolvida), autor. Fotos ligadas por `Fotos.observacao_id` |
 | `Registros` | Um registro de andamento: apto, disciplina, ponto, ambiente, legenda, data de captura, autor |
 | `Usuarios` | Perfil e disciplinas liberadas de cada usuário (a senha fica só como hash nas Propriedades do Script) |
 | `Log` | Quem fez o quê e quando |
@@ -163,3 +165,4 @@ Gerados no navegador com jsPDF, no estilo Essence (marrom `#43331e`, dourado `#8
 - **10/10/2026 — v1.3.0**: perfil "Coordenação" (vê todas as disciplinas, como o Gabriel) pode ser criado em Cadastros → Usuários, que passou a se chamar "Novo usuário" com campo Perfil. Usuários da obra criados por um arquivo de apoio `Acessos.gs` (fora do repositório, com os nomes da equipe): Luciano (Elétrica), Francisco (Hidráulica), Jordeano (Estrutura e Civil), José (Civil), Jailton (Coordenação). Entram sem senha até as senhas serem definidas. **Mudou o `Code.gs`**: colar, adicionar o arquivo `Acessos.gs` no editor, rodar `importarAcessos()` e reimplantar com Nova versão.
 - **10/10/2026 — v1.3.1**: senhas numéricas da equipe definidas (gravadas só como hash, via `importarAcessos()` no arquivo de entrega, que não vai ao GitHub). `PERMITIR_SEM_SENHA` passou para `false`: usuário sem senha definida não entra mais (senha passa a ser obrigatória ao criar usuário). Mudou o `Code.gs`: colar o arquivo completo, rodar `setup()` e `importarAcessos()` e reimplantar com Nova versão.
 - **10/10/2026 — v1.3.2**: menus suspensos do login (Disciplina e Nome) próprios: lista arredondada em cinza, letras brancas, item selecionado em cinza escuro (o menu nativo do navegador não aceita estilo). Só `index.html`.
+- **10/10/2026 — v1.4.0**: (1) o cabeçalho mostra a disciplina do usuário (Hidráulica, Elétrica…; "Administração" para Bárbara, Gabriel e Jailton). (2) Abas: **Checklists** (antes FVS), Pendências, **Fotos** (antes Andamento), **Observações gerais** (nova); a Bárbara ainda tem Modelos, **Biblioteca**, Cadastros e Histórico. (3) Encarregado preenche checklists das disciplinas dele: `Modelos` e `FVS` ganharam `disciplina_id`, e o servidor filtra por disciplina (checklists, pendências, reinspeção, fotos). (4) **Observações gerais**: texto + local + "relacionada a" + até 12 fotos; vão direto para a administração, que marca como resolvida ou exclui. (5) Gabriel e Jailton viram **somente leitura** (perfil `consulta`), reforçado no servidor; só a Bárbara escreve/apaga/bloqueia. (6) **Biblioteca de serviços**: 65 serviços (436 itens) em 10 áreas, dentro do `index.html` (constante `LIB`); a Bárbara marca os serviços, escolhe a disciplina e eles viram checklists e pontos de foto dela (ação `adicionarServicos`, sem duplicar por nome). Os critérios usam "conforme projeto/norma" em vez de números e precisam de revisão da engenharia. **Mudou o `Code.gs`**: colar o arquivo completo, rodar `setup()` (cria a aba `ObservacoesGerais` e as colunas novas) e reimplantar com Nova versão.

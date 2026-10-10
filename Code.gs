@@ -10,11 +10,11 @@
  * Ao colar uma versão nova deste arquivo: rodar setup() de novo (cria abas novas e repara
  * cabeçalhos sem apagar dados) e reimplantar o Web App com "Nova versão".
  *
- * Perfis: admin (Bárbara) · completo (Gabriel) · encarregado (criados pela Bárbara na tela
+ * Perfis: admin (Bárbara) · consulta (Gabriel e Jailton, só leitura) · encarregado (criados pela Bárbara na tela
  * Cadastros → Usuários; só registram e veem as próprias fotos de andamento).
  */
 
-const VERSAO = '1.3.1';
+const VERSAO = '1.4.0';
 /** Enquanto true, usuário que AINDA NÃO tem senha definida entra sem senha. Quem já tem senha continua exigindo. */
 const PERMITIR_SEM_SENHA = false;
 const TZ = 'America/Sao_Paulo';
@@ -27,20 +27,21 @@ const PASTA_BACKUP = 'Backup_FVS_Essence';
 const MAX_FOTO_BYTES = 6 * 1024 * 1024;
 
 const ABAS = {
-  Modelos: ['id', 'nome', 'descricao', 'ativo', 'criado_em', 'atualizado_em'],
+  Modelos: ['id', 'nome', 'descricao', 'ativo', 'criado_em', 'atualizado_em', 'disciplina_id'],
   ModeloItens: ['id', 'modelo_id', 'ordem', 'descricao', 'criterio'],
   Fornecedores: ['id', 'nome', 'servicos', 'contato', 'ativo'],
   Apartamentos: ['id', 'codigo', 'tipo', 'ativo'],
   FVS: ['id', 'numero', 'data', 'apartamento', 'modelo_id', 'modelo_nome', 'fornecedor_id', 'fornecedor_nome',
-        'responsavel_obra', 'status', 'observacao', 'assinatura_nome', 'criado_por', 'criado_em', 'atualizado_em'],
+        'responsavel_obra', 'status', 'observacao', 'assinatura_nome', 'criado_por', 'criado_em', 'atualizado_em', 'disciplina_id'],
   FVS_Itens: ['id', 'fvs_id', 'item_id', 'ordem', 'descricao', 'criterio', 'resultado', 'observacao'],
   Pendencias: ['id', 'fvs_id', 'fvs_item_id', 'apartamento', 'servico', 'fornecedor_nome', 'descricao', 'responsavel',
                'prazo', 'status', 'reinspecoes', 'reinspecao_data', 'reinspecao_obs', 'criado_em', 'resolvido_em', 'resolvido_por'],
-  Fotos: ['id', 'fvs_id', 'fvs_item_id', 'pendencia_id', 'tipo', 'drive_id', 'criado_em', 'criado_por', 'registro_id'],
+  Fotos: ['id', 'fvs_id', 'fvs_item_id', 'pendencia_id', 'tipo', 'drive_id', 'criado_em', 'criado_por', 'registro_id', 'observacao_id'],
   Disciplinas: ['id', 'nome', 'ativo'],
   PontosAndamento: ['id', 'disciplina_id', 'ordem', 'nome', 'descricao'],
   Registros: ['id', 'apartamento', 'disciplina_id', 'disciplina_nome', 'ponto_id', 'ponto_nome', 'ambiente', 'legenda',
               'capturado_em', 'criado_por', 'criado_em'],
+  ObservacoesGerais: ['id', 'disciplina_id', 'disciplina_nome', 'local', 'relacionada', 'texto', 'status', 'criado_por', 'criado_em', 'resolvido_em'],
   Usuarios: ['id', 'nome', 'perfil', 'disciplinas', 'ativo'],
   Log: ['data', 'usuario', 'acao', 'ref', 'detalhe'],
   Auditoria_Excluidos: ['data', 'usuario', 'aba', 'id', 'linha_json']
@@ -271,10 +272,10 @@ function definirSenha_(nome, senha) {
 /** Perfil e restrições do usuário. null se não existir ou estiver arquivado. */
 function infoUsuario_(nome) {
   if (nome === ADMIN) return { nome: nome, perfil: 'admin', disciplinas: [] };
-  if (USUARIOS.indexOf(nome) >= 0) return { nome: nome, perfil: 'completo', disciplinas: [] };
+  if (USUARIOS.indexOf(nome) >= 0) return { nome: nome, perfil: 'consulta', disciplinas: [] };
   const r = lerAba_('Usuarios').filter(function (x) { return x.nome === nome && x.ativo !== 'nao'; })[0];
   if (!r) return null;
-  if (r.perfil === 'completo') return { nome: nome, perfil: 'completo', disciplinas: [] };
+  if (r.perfil === 'completo' || r.perfil === 'consulta') return { nome: nome, perfil: 'consulta', disciplinas: [] };
   return { nome: nome, perfil: 'encarregado', disciplinas: String(r.disciplinas || '').split(',').filter(Boolean) };
 }
 
@@ -285,7 +286,7 @@ function listarUsuarios_() {
   const lista = USUARIOS.map(function (n) { return { nome: n, competencias: ['Administração'] }; });
   lerAba_('Usuarios').forEach(function (x) {
     if (x.ativo === 'nao' || !x.nome) return;
-    if (x.perfil === 'completo') { lista.push({ nome: x.nome, competencias: ['Administração'] }); return; }
+    if (x.perfil === 'completo' || x.perfil === 'consulta') { lista.push({ nome: x.nome, competencias: ['Administração'] }); return; }
     const comp = String(x.disciplinas || '').split(',').filter(function (id) { return nomeDisc[id]; }).map(function (id) { return nomeDisc[id]; });
     if (comp.length) lista.push({ nome: x.nome, competencias: comp });
   });
@@ -476,9 +477,17 @@ function bootstrap_(req, u, info) {
     disc = disc.filter(function (d) { return info.disciplinas.indexOf(d.id) >= 0; });
     pontos = pontos.filter(function (p) { return info.disciplinas.indexOf(p.disciplina_id) >= 0; });
     disc = disc.filter(function (d) { return d.ativo !== 'nao'; });
+    const meus = function (x) { return info.disciplinas.indexOf(x.disciplina_id) >= 0; };
+    const modelos = out('Modelos').filter(meus);
+    const mids = {}; modelos.forEach(function (m) { mids[m.id] = true; });
+    const fvs = out('FVS').filter(meus);
+    const fids = {}; fvs.forEach(function (f) { fids[f.id] = true; });
     return Object.assign(base, {
       apartamentos: out('Apartamentos').filter(function (a) { return a.ativo !== 'nao'; }),
-      disciplinas: disc, pontos: pontos
+      disciplinas: disc, pontos: pontos,
+      modelos: modelos, itens: out('ModeloItens').filter(function (i) { return mids[i.modelo_id]; }),
+      fornecedores: out('Fornecedores').filter(function (f) { return f.ativo !== 'nao'; }),
+      fvs: fvs, pendencias: out('Pendencias').filter(function (p) { return fids[p.fvs_id]; })
     });
   }
   return Object.assign(base, {
@@ -489,10 +498,15 @@ function bootstrap_(req, u, info) {
   });
 }
 
-function getFVS_(req) {
+/** Encarregado só mexe em checklists das disciplinas dele. */
+function podeFVS_(f, info) {
+  return info.perfil !== 'encarregado' || info.disciplinas.indexOf(f.disciplina_id) >= 0;
+}
+
+function getFVS_(req, u, info) {
   const id = String(req.id || '');
   const f = lerAba_('FVS').filter(function (x) { return x.id === id; })[0];
-  if (!f) throw new Error('FVS não encontrada.');
+  if (!f || !podeFVS_(f, info)) throw new Error('FVS não encontrada.');
   const itens = lerAba_('FVS_Itens').filter(function (x) { return x.fvs_id === id; })
     .sort(function (a, b) { return Number(a.ordem) - Number(b.ordem); }).map(limpar_);
   const fotos = lerAba_('Fotos').filter(function (x) { return x.fvs_id === id; }).map(function (x) { const c = limpar_(x); delete c.drive_id; return c; });
@@ -509,8 +523,9 @@ function salvarModelo_(req, u) {
   const id = idValido_(m.id) ? m.id : novoId_();
   const agora = agora_();
   const existe = achar_('Modelos', id);
-  if (existe) atualizar_('Modelos', id, { nome: nome, descricao: texto_(m.descricao, 500), atualizado_em: agora });
-  else inserir_('Modelos', { id: id, nome: nome, descricao: texto_(m.descricao, 500), ativo: 'sim', criado_em: agora, atualizado_em: agora });
+  const discId = idValido_(m.disciplina_id) && achar_('Disciplinas', m.disciplina_id) ? m.disciplina_id : '';
+  if (existe) atualizar_('Modelos', id, { nome: nome, descricao: texto_(m.descricao, 500), atualizado_em: agora, disciplina_id: discId });
+  else inserir_('Modelos', { id: id, nome: nome, descricao: texto_(m.descricao, 500), ativo: 'sim', criado_em: agora, atualizado_em: agora, disciplina_id: discId });
   const outros = lerAba_('ModeloItens').filter(function (x) { return x.modelo_id !== id; }).map(limpar_);
   const novos = [];
   itens.forEach(function (it, i) {
@@ -577,7 +592,7 @@ function recalcStatus_(fvsId) {
   return st;
 }
 
-function salvarFVS_(req, u) {
+function salvarFVS_(req, u, info) {
   const f = req.fvs || {};
   const itens = req.itens || [];
   const pend = req.pendencias || {};
@@ -587,6 +602,13 @@ function salvarFVS_(req, u) {
   if (!apto) throw new Error('Informe o apartamento.');
   if (!itens.length) throw new Error('A FVS não tem itens.');
   const nomeServico = texto_(f.modelo_nome, 120);
+  const modelo = f.modelo_id ? lerAba_('Modelos').filter(function (x) { return x.id === f.modelo_id; })[0] : null;
+  const discFVS = modelo ? String(modelo.disciplina_id || '') : '';
+  if (info.perfil === 'encarregado') {
+    if (info.disciplinas.indexOf(discFVS) < 0) throw new Error('Você não tem acesso a este checklist.');
+    const ja = lerAba_('FVS').filter(function (x) { return x.id === f.id; })[0];
+    if (ja && info.disciplinas.indexOf(ja.disciplina_id) < 0) throw new Error('Acesso restrito.');
+  }
   const ids = {};
   itens.forEach(function (it, i) {
     if (!idValido_(it.id) || ids[it.id]) throw new Error('Item ' + (i + 1) + ' com identificador inválido.');
@@ -605,7 +627,7 @@ function salvarFVS_(req, u) {
     data: f.data, apartamento: apto, modelo_id: texto_(f.modelo_id, 64), modelo_nome: nomeServico,
     fornecedor_id: texto_(f.fornecedor_id, 64), fornecedor_nome: texto_(f.fornecedor_nome, 120),
     responsavel_obra: texto_(f.responsavel_obra, 120), observacao: texto_(f.observacao, 2000),
-    assinatura_nome: texto_(f.assinatura_nome, 120), atualizado_em: agora
+    assinatura_nome: texto_(f.assinatura_nome, 120), atualizado_em: agora, disciplina_id: discFVS
   };
   if (existente) {
     atualizar_('FVS', f.id, cab);
@@ -653,11 +675,15 @@ function salvarFVS_(req, u) {
   return { ok: true, id: f.id, numero: numero, status: status };
 }
 
-function reinspecionar_(req, u) {
+function reinspecionar_(req, u, info) {
   const id = String(req.id || '');
   const p = lerAba_('Pendencias').filter(function (x) { return x.id === id; })[0];
   if (!p) throw new Error('Pendência não encontrada.');
   if (p.status !== 'Aberta') throw new Error('Esta pendência não está aberta.');
+  if (info.perfil === 'encarregado') {
+    const fv = lerAba_('FVS').filter(function (x) { return x.id === p.fvs_id; })[0];
+    if (!fv || !podeFVS_(fv, info)) throw new Error('Acesso restrito.');
+  }
   const agora = agora_();
   const obs = texto_(req.obs, 1000);
   const n = String(Number(p.reinspecoes || 0) + 1);
@@ -682,32 +708,41 @@ function reinspecionar_(req, u) {
 function uploadFoto_(req, u, info) {
   const id = req.id;
   if (!idValido_(id)) throw new Error('Identificador da foto inválido.');
-  const tipos = ['item', 'assinatura', 'reinspecao', 'andamento'];
+  const tipos = ['item', 'assinatura', 'reinspecao', 'andamento', 'observacao'];
   if (tipos.indexOf(req.tipo) < 0) throw new Error('Tipo de foto inválido.');
-  if (info.perfil === 'encarregado' && req.tipo !== 'andamento') throw new Error('Acesso restrito.');
   if (achar_('Fotos', id)) return { ok: true, id: id, repetida: true }; // reenvio seguro
   let fvsId = '';
   let registroId = '';
+  let obsId = '';
   if (req.tipo === 'andamento') {
     registroId = String(req.registro_id || '');
     const reg = lerAba_('Registros').filter(function (x) { return x.id === registroId; })[0];
     if (!reg) throw new Error('Registro não encontrado para a foto.');
-    if (info.perfil === 'encarregado' && reg.criado_por !== u) throw new Error('Acesso restrito.');
+    if (info.perfil === 'encarregado' && info.disciplinas.indexOf(reg.disciplina_id) < 0) throw new Error('Acesso restrito.');
     const qtd = lerAba_('Fotos').filter(function (x) { return x.registro_id === registroId; }).length;
     if (qtd >= MAX_FOTOS_REGISTRO) throw new Error('Limite de ' + MAX_FOTOS_REGISTRO + ' fotos por registro.');
+  } else if (req.tipo === 'observacao') {
+    obsId = String(req.observacao_id || '');
+    const ob = lerAba_('ObservacoesGerais').filter(function (x) { return x.id === obsId; })[0];
+    if (!ob) throw new Error('Observação não encontrada para a foto.');
+    if (info.perfil === 'encarregado' && info.disciplinas.indexOf(ob.disciplina_id) < 0) throw new Error('Acesso restrito.');
+    const qo = lerAba_('Fotos').filter(function (x) { return x.observacao_id === obsId; }).length;
+    if (qo >= MAX_FOTOS_REGISTRO) throw new Error('Limite de ' + MAX_FOTOS_REGISTRO + ' fotos por observação.');
   } else {
     fvsId = String(req.fvs_id || '');
-    if (!achar_('FVS', fvsId)) throw new Error('FVS não encontrada para a foto.');
+    const fv = lerAba_('FVS').filter(function (x) { return x.id === fvsId; })[0];
+    if (!fv) throw new Error('FVS não encontrada para a foto.');
+    if (!podeFVS_(fv, info)) throw new Error('Acesso restrito.');
   }
   const m = /^data:(image\/(?:jpeg|png));base64,([A-Za-z0-9+\/=]+)$/.exec(String(req.dataUrl || ''));
   if (!m) throw new Error('Imagem inválida.');
   const bytes = Utilities.base64Decode(m[2]);
   if (bytes.length > MAX_FOTO_BYTES) throw new Error('Imagem muito grande.');
   const ext = m[1] === 'image/png' ? '.png' : '.jpg';
-  const arquivo = pastaFotos_().createFile(Utilities.newBlob(bytes, m[1], (registroId ? 'andamento_' : 'fvs_') + id + ext));
+  const arquivo = pastaFotos_().createFile(Utilities.newBlob(bytes, m[1], (registroId ? 'andamento_' : obsId ? 'obs_' : 'fvs_') + id + ext));
   inserir_('Fotos', {
     id: id, fvs_id: fvsId, fvs_item_id: texto_(req.fvs_item_id, 64), pendencia_id: texto_(req.pendencia_id, 64),
-    tipo: req.tipo, drive_id: arquivo.getId(), criado_em: agora_(), criado_por: u, registro_id: registroId
+    tipo: req.tipo, drive_id: arquivo.getId(), criado_em: agora_(), criado_por: u, registro_id: registroId, observacao_id: obsId
   });
   return { ok: true, id: id };
 }
@@ -715,10 +750,19 @@ function uploadFoto_(req, u, info) {
 /** Encarregado só lê fotos de andamento das disciplinas dele. */
 function podeVerFoto_(foto, u, info, regsCache) {
   if (info.perfil !== 'encarregado') return true;
-  if (foto.tipo !== 'andamento') return false;
-  if (!regsCache.mapa) { regsCache.mapa = {}; lerAba_('Registros').forEach(function (r) { regsCache.mapa[r.id] = r; }); }
-  const r = regsCache.mapa[foto.registro_id];
-  return !!r && info.disciplinas.indexOf(r.disciplina_id) >= 0;
+  if (foto.tipo === 'andamento') {
+    if (!regsCache.mapa) { regsCache.mapa = {}; lerAba_('Registros').forEach(function (r) { regsCache.mapa[r.id] = r; }); }
+    const r = regsCache.mapa[foto.registro_id];
+    return !!r && info.disciplinas.indexOf(r.disciplina_id) >= 0;
+  }
+  if (foto.tipo === 'observacao') {
+    if (!regsCache.obs) { regsCache.obs = {}; lerAba_('ObservacoesGerais').forEach(function (o) { regsCache.obs[o.id] = o; }); }
+    const o = regsCache.obs[foto.observacao_id];
+    return !!o && info.disciplinas.indexOf(o.disciplina_id) >= 0;
+  }
+  if (!regsCache.fvs) { regsCache.fvs = {}; lerAba_('FVS').forEach(function (x) { regsCache.fvs[x.id] = x; }); }
+  const fv = regsCache.fvs[foto.fvs_id];
+  return !!fv && info.disciplinas.indexOf(fv.disciplina_id) >= 0;
 }
 
 function dataUrlDaFoto_(foto) {
@@ -808,7 +852,7 @@ function salvarRegistro_(req, u, info) {
   if (!idValido_(r.id)) throw new Error('Identificador do registro inválido.');
   const existente = lerAba_('Registros').filter(function (x) { return x.id === r.id; })[0];
   if (existente) { // reenvio da fila: não duplica
-    if (info.perfil === 'encarregado' && existente.criado_por !== u) throw new Error('Acesso restrito.');
+    if (info.perfil === 'encarregado' && info.disciplinas.indexOf(existente.disciplina_id) < 0) throw new Error('Acesso restrito.');
     return { ok: true, id: r.id, repetido: true };
   }
   const apto = texto_(r.apartamento, 60).trim();
@@ -876,8 +920,9 @@ function salvarUsuario_(req, u) {
     if (USUARIOS.some(function (x) { return x.toLowerCase() === lower; })) throw new Error('Este nome é reservado.');
     if (todos.some(function (x) { return String(x.nome).toLowerCase() === lower; })) throw new Error('Já existe um usuário com esse nome.');
   }
-  const perfil = (existente ? existente.perfil : d.perfil) === 'completo' || d.perfil === 'completo' ? 'completo' : 'encarregado';
-  const disciplinas = perfil === 'completo' ? [] : (d.disciplinas || []).map(String).filter(idValido_);
+  const pedido = existente ? existente.perfil : d.perfil;
+  const perfil = (pedido === 'completo' || pedido === 'consulta' || d.perfil === 'consulta') ? 'consulta' : 'encarregado';
+  const disciplinas = perfil === 'consulta' ? [] : (d.disciplinas || []).map(String).filter(idValido_);
   const senha = String(d.senha || '');
   if (!existente && !senha && !PERMITIR_SEM_SENHA) throw new Error('Informe a senha (4 a 8 números).');
   if (senha) validarPin_(senha);
@@ -894,6 +939,100 @@ function salvarUsuario_(req, u) {
   return { ok: true, id: id };
 }
 
+/* ------------------------------------------------------------------ */
+/* Observações gerais (reclamações e avisos por disciplina)             */
+/* ------------------------------------------------------------------ */
+
+function salvarObservacao_(req, u, info) {
+  const o = req.observacao || {};
+  if (!idValido_(o.id)) throw new Error('Identificador da observação inválido.');
+  const existente = lerAba_('ObservacoesGerais').filter(function (x) { return x.id === o.id; })[0];
+  if (existente) { // reenvio da fila: não duplica
+    if (info.perfil === 'encarregado' && info.disciplinas.indexOf(existente.disciplina_id) < 0) throw new Error('Acesso restrito.');
+    return { ok: true, id: o.id, repetido: true };
+  }
+  const disc = lerAba_('Disciplinas').filter(function (x) { return x.id === o.disciplina_id; })[0];
+  if (!disc) throw new Error('Disciplina não encontrada.');
+  if (info.perfil === 'encarregado' && info.disciplinas.indexOf(disc.id) < 0) throw new Error('Você não tem acesso a esta disciplina.');
+  const texto = texto_(o.texto, 2000).trim();
+  if (!texto) throw new Error('Descreva a observação.');
+  inserir_('ObservacoesGerais', {
+    id: o.id, disciplina_id: disc.id, disciplina_nome: disc.nome, local: texto_(o.local, 100).trim(),
+    relacionada: texto_(o.relacionada, 100).trim(), texto: texto, status: 'Aberta', criado_por: u, criado_em: agora_()
+  });
+  registrarLog_(u, 'observacao_criada', o.id, disc.nome + ' · ' + texto_(texto, 100));
+  return { ok: true, id: o.id };
+}
+
+function getObservacoes_(req, u, info) {
+  let obs = lerAba_('ObservacoesGerais').map(limpar_);
+  if (info.perfil === 'encarregado') obs = obs.filter(function (x) { return info.disciplinas.indexOf(x.disciplina_id) >= 0; });
+  const ids = {}; obs.forEach(function (x) { ids[x.id] = true; });
+  const fotos = lerAba_('Fotos').filter(function (f) { return f.tipo === 'observacao' && ids[f.observacao_id]; })
+    .map(function (f) { return { id: f.id, observacao_id: f.observacao_id, criado_em: f.criado_em }; });
+  return { ok: true, observacoes: obs, fotos: fotos };
+}
+
+function resolverObservacao_(req, u) {
+  const id = String(req.id || '');
+  const ob = lerAba_('ObservacoesGerais').filter(function (x) { return x.id === id; })[0];
+  if (!ob) throw new Error('Observação não encontrada.');
+  const resolvida = !!req.resolvida;
+  atualizar_('ObservacoesGerais', id, { status: resolvida ? 'Resolvida' : 'Aberta', resolvido_em: resolvida ? agora_() : '' });
+  registrarLog_(u, resolvida ? 'observacao_resolvida' : 'observacao_reaberta', id, ob.disciplina_nome);
+  return { ok: true };
+}
+
+function excluirObservacao_(req, u) {
+  const id = String(req.id || '');
+  const ob = lerAba_('ObservacoesGerais').filter(function (x) { return x.id === id; })[0];
+  if (!ob) throw new Error('Observação não encontrada.');
+  backupAntes_();
+  removerLinhas_('Fotos', 'observacao_id', id, u);
+  removerLinhas_('ObservacoesGerais', 'id', id, u);
+  registrarLog_(u, 'observacao_excluida', id, ob.disciplina_nome + ' · ' + texto_(ob.texto, 80));
+  return { ok: true };
+}
+
+/**
+ * Biblioteca de serviços: a tela envia os serviços marcados e a disciplina de destino.
+ * Cada serviço vira um checklist da disciplina; os pontos de foto sugeridos entram na lista da disciplina.
+ * Serviço com o mesmo nome na mesma disciplina não é duplicado.
+ */
+function adicionarServicos_(req, u) {
+  const disc = lerAba_('Disciplinas').filter(function (x) { return x.id === req.disciplina_id; })[0];
+  if (!disc) throw new Error('Disciplina não encontrada.');
+  const servicos = (req.servicos || []).slice(0, 60);
+  if (!servicos.length) throw new Error('Marque ao menos um serviço.');
+  const modelosAtuais = lerAba_('Modelos').filter(function (m) { return m.disciplina_id === disc.id; });
+  const nomesM = {}; modelosAtuais.forEach(function (m) { nomesM[String(m.nome).toLowerCase()] = true; });
+  const pontosAtuais = lerAba_('PontosAndamento').filter(function (p) { return p.disciplina_id === disc.id; });
+  const nomesP = {}; pontosAtuais.forEach(function (p) { nomesP[String(p.nome).toLowerCase()] = true; });
+  let ordemP = pontosAtuais.length;
+  const agora = agora_();
+  let nM = 0; let nP = 0; let jaTinha = 0;
+  servicos.forEach(function (sv) {
+    const nome = texto_(sv.nome, 120).trim();
+    const itens = (sv.itens || []).map(function (it) { return { d: texto_(it[0], 300).trim(), c: texto_(it[1], 500).trim() }; }).filter(function (it) { return it.d; });
+    if (!nome) return;
+    if (nomesM[nome.toLowerCase()]) { jaTinha++; }
+    else if (itens.length) {
+      const id = novoId_();
+      inserir_('Modelos', { id: id, nome: nome, descricao: texto_(sv.descricao, 500), ativo: 'sim', criado_em: agora, atualizado_em: agora, disciplina_id: disc.id });
+      itens.forEach(function (it, i) { inserir_('ModeloItens', { id: novoId_(), modelo_id: id, ordem: String(i + 1), descricao: it.d, criterio: it.c }); });
+      nomesM[nome.toLowerCase()] = true; nM++;
+    }
+    (sv.pontos || []).forEach(function (p) {
+      const pn = texto_(p[0], 120).trim();
+      if (!pn || nomesP[pn.toLowerCase()]) return;
+      nomesP[pn.toLowerCase()] = true; ordemP++; nP++;
+      inserir_('PontosAndamento', { id: novoId_(), disciplina_id: disc.id, ordem: String(ordemP), nome: pn, descricao: texto_(p[1], 300).trim() });
+    });
+  });
+  registrarLog_(u, 'servicos_adicionados', disc.id, disc.nome + ' · ' + nM + ' checklist(s), ' + nP + ' ponto(s) de foto');
+  return { ok: true, checklists: nM, pontos: nP, jaExistiam: jaTinha };
+}
+
 function getLog_(req, u) {
   exigirAdmin_(u);
   return { ok: true, log: lerAba_('Log').map(limpar_).reverse().slice(0, 500) };
@@ -907,26 +1046,32 @@ function getExcluidos_(req, u) {
 
 /**
  * Cada ação: [função, quem pode, é só leitura?]
- * Quem pode: 'T' = todos os perfis (inclui encarregado) · 'AC' = admin e completo · 'A' = só admin.
+ * Quem pode: 'T' = todos os perfis (leitura; encarregado vê só o que é da disciplina dele)
+ * · 'E' = admin e encarregado (escrever) · 'A' = só admin. O perfil 'consulta' (Gabriel, Jailton) só lê.
  */
 const ACOES = {
   bootstrap: [bootstrap_, 'T', true],
   getFoto: [getFoto_, 'T', true],
   getFotos: [getFotos_, 'T', true],
   getAndamento: [getAndamento_, 'T', true],
-  salvarRegistro: [salvarRegistro_, 'T', false],
-  uploadFoto: [uploadFoto_, 'T', false],
-  getFVS: [getFVS_, 'AC', true],
-  salvarModelo: [salvarModelo_, 'AC', false],
-  alterarAtivo: [alterarAtivo_, 'AC', false],
-  salvarFornecedor: [salvarFornecedor_, 'AC', false],
-  salvarApartamentos: [salvarApartamentos_, 'AC', false],
-  salvarDisciplina: [salvarDisciplina_, 'AC', false],
-  salvarFVS: [salvarFVS_, 'AC', false],
-  reinspecionar: [reinspecionar_, 'AC', false],
-  excluirFoto: [excluirFoto_, 'AC', false],
+  getFVS: [getFVS_, 'T', true],
+  getObservacoes: [getObservacoes_, 'T', true],
+  salvarRegistro: [salvarRegistro_, 'E', false],
+  uploadFoto: [uploadFoto_, 'E', false],
+  salvarFVS: [salvarFVS_, 'E', false],
+  reinspecionar: [reinspecionar_, 'E', false],
+  salvarObservacao: [salvarObservacao_, 'E', false],
+  salvarModelo: [salvarModelo_, 'A', false],
+  alterarAtivo: [alterarAtivo_, 'A', false],
+  salvarFornecedor: [salvarFornecedor_, 'A', false],
+  salvarApartamentos: [salvarApartamentos_, 'A', false],
+  salvarDisciplina: [salvarDisciplina_, 'A', false],
+  adicionarServicos: [adicionarServicos_, 'A', false],
+  excluirFoto: [excluirFoto_, 'A', false],
   excluirFVS: [excluirFVS_, 'A', false],
   excluirRegistro: [excluirRegistro_, 'A', false],
+  excluirObservacao: [excluirObservacao_, 'A', false],
+  resolverObservacao: [resolverObservacao_, 'A', false],
   salvarUsuario: [salvarUsuario_, 'A', false],
   getLog: [getLog_, 'A', true],
   getExcluidos: [getExcluidos_, 'A', true]
@@ -934,7 +1079,7 @@ const ACOES = {
 
 function perfilPermitido_(regra, perfil) {
   if (regra === 'T') return true;
-  if (regra === 'AC') return perfil === 'admin' || perfil === 'completo';
+  if (regra === 'E') return perfil === 'admin' || perfil === 'encarregado'; // escrita: consulta (Gabriel, Jailton) nunca escreve
   return perfil === 'admin';
 }
 
