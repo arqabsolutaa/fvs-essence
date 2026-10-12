@@ -14,7 +14,7 @@
  * Cadastros → Usuários; só registram e veem as próprias fotos de andamento).
  */
 
-const VERSAO = '1.13.0';
+const VERSAO = '1.14.0';
 /** Enquanto true, usuário que AINDA NÃO tem senha definida entra sem senha. Quem já tem senha continua exigindo. */
 const PERMITIR_SEM_SENHA = false;
 const TZ = 'America/Sao_Paulo';
@@ -28,7 +28,7 @@ const MAX_FOTO_BYTES = 6 * 1024 * 1024;
 
 const ABAS = {
   Modelos: ['id', 'nome', 'descricao', 'ativo', 'criado_em', 'atualizado_em', 'disciplina_id', 'escopo', 'encarregado', 'modulo', 'apartamento'],
-  ModeloItens: ['id', 'modelo_id', 'ordem', 'descricao', 'criterio', 'exige_foto'],
+  ModeloItens: ['id', 'modelo_id', 'ordem', 'descricao', 'criterio', 'exige_foto', 'video'],
   Fornecedores: ['id', 'nome', 'servicos', 'contato', 'ativo'],
   Apartamentos: ['id', 'codigo', 'tipo', 'ativo'],
   FVS: ['id', 'numero', 'data', 'apartamento', 'modelo_id', 'modelo_nome', 'fornecedor_id', 'fornecedor_nome',
@@ -37,6 +37,8 @@ const ABAS = {
   Pendencias: ['id', 'fvs_id', 'fvs_item_id', 'apartamento', 'servico', 'fornecedor_nome', 'descricao', 'responsavel',
                'prazo', 'status', 'reinspecoes', 'reinspecao_data', 'reinspecao_obs', 'criado_em', 'resolvido_em', 'resolvido_por'],
   Fotos: ['id', 'fvs_id', 'fvs_item_id', 'pendencia_id', 'tipo', 'drive_id', 'criado_em', 'criado_por', 'registro_id', 'observacao_id'],
+  Videos: ['id', 'fvs_id', 'fvs_item_id', 'mime', 'partes', 'tamanho', 'criado_em', 'criado_por'],
+  VideoPartes: ['id', 'video_id', 'n', 'drive_id'],
   Disciplinas: ['id', 'nome', 'ativo'],
   PontosAndamento: ['id', 'disciplina_id', 'ordem', 'nome', 'descricao'],
   Registros: ['id', 'apartamento', 'disciplina_id', 'disciplina_nome', 'ponto_id', 'ponto_nome', 'ambiente', 'legenda',
@@ -534,7 +536,8 @@ function getFVS_(req, u, info) {
     .sort(function (a, b) { return Number(a.ordem) - Number(b.ordem); }).map(limpar_);
   const fotos = lerAba_('Fotos').filter(function (x) { return x.fvs_id === id; }).map(function (x) { const c = limpar_(x); delete c.drive_id; return c; });
   const pend = lerAba_('Pendencias').filter(function (x) { return x.fvs_id === id; }).map(limpar_);
-  return { ok: true, fvs: limpar_(f), itens: itens, fotos: fotos, pendencias: pend };
+  const videos = lerAba_('Videos').filter(function (x) { return x.fvs_id === id; }).map(limpar_);
+  return { ok: true, fvs: limpar_(f), itens: itens, fotos: fotos, pendencias: pend, videos: videos };
 }
 
 /** Onde o checklist se aplica: 'Unidade', 'Torre' (áreas comuns) ou '' (os dois). */
@@ -571,7 +574,7 @@ function salvarModelo_(req, u) {
   itens.forEach(function (it, i) {
     const d = texto_(it.descricao, 300).trim();
     if (!d) return;
-    novos.push({ id: idValido_(it.id) ? it.id : novoId_(), modelo_id: id, ordem: String(novos.length + 1), descricao: d, criterio: texto_(it.criterio, 500).trim(), exige_foto: it.exige_foto ? 'sim' : '' });
+    novos.push({ id: idValido_(it.id) ? it.id : novoId_(), modelo_id: id, ordem: String(novos.length + 1), descricao: d, criterio: texto_(it.criterio, 500).trim(), exige_foto: it.exige_foto ? 'sim' : '', video: it.video ? 'sim' : '' });
   });
   if (!novos.length) throw new Error('O modelo precisa de ao menos um item com descrição.');
   reescrever_('ModeloItens', outros.concat(novos));
@@ -796,6 +799,58 @@ function uploadFoto_(req, u, info) {
   return { ok: true, id: id };
 }
 
+/* ------------------------------------------------------------------ */
+/* Vídeos (enviados em pedaços de ~1,5 MB; o app junta na hora de ver) */
+/* ------------------------------------------------------------------ */
+const MAX_VIDEO_PARTES = 64;
+const MAX_PARTE_BYTES = 3 * 1024 * 1024;
+
+function uploadVideoParte_(req, u, info) {
+  const id = req.id;
+  if (!idValido_(id)) throw new Error('Identificador do vídeo inválido.');
+  const n = Number(req.n); const total = Number(req.total);
+  if (!(n >= 0 && n < total && total <= MAX_VIDEO_PARTES && n % 1 === 0 && total % 1 === 0)) throw new Error('Parte de vídeo inválida.');
+  const mime = String(req.mime || '');
+  if (!/^video\/(mp4|quicktime|webm|3gpp|x-m4v)$/.test(mime)) throw new Error('Formato de vídeo não aceito.');
+  const fvsId = String(req.fvs_id || '');
+  const fv = lerAba_('FVS').filter(function (x) { return x.id === fvsId; })[0];
+  if (!fv) throw new Error('FVS não encontrada para o vídeo.');
+  if (!podeFVSEscrita_(fv, info)) throw new Error('Acesso restrito.');
+  const existe = lerAba_('VideoPartes').filter(function (x) { return x.video_id === id && String(x.n) === String(n); })[0];
+  if (existe) return { ok: true, repetida: true };
+  if (!/^[A-Za-z0-9+\/=]+$/.test(String(req.dados || ''))) throw new Error('Dados do vídeo inválidos.');
+  const bytes = Utilities.base64Decode(req.dados);
+  if (bytes.length > MAX_PARTE_BYTES) throw new Error('Parte de vídeo muito grande.');
+  if (!achar_('Videos', id)) {
+    inserir_('Videos', { id: id, fvs_id: fvsId, fvs_item_id: texto_(req.fvs_item_id, 64), mime: mime, partes: String(total), tamanho: String(Math.max(0, Number(req.tamanho) || 0)), criado_em: agora_(), criado_por: u });
+  }
+  const arq = pastaFotos_().createFile(Utilities.newBlob(bytes, 'application/octet-stream', 'video_' + id + '_' + n + '.bin'));
+  inserir_('VideoPartes', { id: novoId_(), video_id: id, n: String(n), drive_id: arq.getId() });
+  return { ok: true };
+}
+
+function getVideoParte_(req, u, info) {
+  const id = String(req.id || '');
+  const v = lerAba_('Videos').filter(function (x) { return x.id === id; })[0];
+  if (!v) throw new Error('Vídeo não encontrado.');
+  const fv = lerAba_('FVS').filter(function (x) { return x.id === v.fvs_id; })[0];
+  if (!fv || !podeFVS_(fv, info)) throw new Error('Vídeo não encontrado.');
+  const p = lerAba_('VideoPartes').filter(function (x) { return x.video_id === id && String(x.n) === String(req.n); })[0];
+  if (!p) throw new Error('Parte do vídeo ainda não enviada.');
+  return { ok: true, dados: Utilities.base64Encode(DriveApp.getFileById(p.drive_id).getBlob().getBytes()) };
+}
+
+function excluirVideo_(req, u) {
+  exigirAdmin_(u);
+  const id = String(req.id || '');
+  const v = lerAba_('Videos').filter(function (x) { return x.id === id; })[0];
+  if (!v) throw new Error('Vídeo não encontrado.');
+  removerLinhas_('VideoPartes', 'video_id', id, u); // os arquivos continuam guardados no Drive
+  removerLinhas_('Videos', 'id', id, u);
+  registrarLog_(u, 'video_excluido', id, v.fvs_id);
+  return { ok: true };
+}
+
 /** Encarregado só lê fotos de andamento das disciplinas dele. */
 function podeVerFoto_(foto, u, info, regsCache) {
   if (info.perfil !== 'encarregado') return true;
@@ -878,6 +933,8 @@ function excluirFVS_(req, u) {
   const f = lerAba_('FVS').filter(function (x) { return x.id === id; })[0];
   if (!f) throw new Error('FVS não encontrada.');
   backupAntes_();
+  lerAba_('Videos').filter(function (x) { return x.fvs_id === id; }).forEach(function (v) { removerLinhas_('VideoPartes', 'video_id', v.id, u); });
+  removerLinhas_('Videos', 'fvs_id', id, u);
   removerLinhas_('Fotos', 'fvs_id', id, u);
   removerLinhas_('Pendencias', 'fvs_id', id, u);
   removerLinhas_('FVS_Itens', 'fvs_id', id, u);
@@ -1082,13 +1139,13 @@ function adicionarServicos_(req, u) {
   let nM = 0; let nP = 0; let jaTinha = 0;
   servicos.forEach(function (sv) {
     const nome = texto_(sv.nome, 120).trim();
-    const itens = (sv.itens || []).map(function (it) { return { d: texto_(it[0], 300).trim(), c: texto_(it[1], 500).trim(), f: it[2] ? 'sim' : '' }; }).filter(function (it) { return it.d; });
+    const itens = (sv.itens || []).map(function (it) { return { d: texto_(it[0], 300).trim(), c: texto_(it[1], 500).trim(), f: it[2] ? 'sim' : '', v: it[3] ? 'sim' : '' }; }).filter(function (it) { return it.d; });
     if (!nome) return;
     if (nomesM[chave(nome, escopo, enc, modulo, apto)]) { jaTinha++; }
     else if (itens.length) {
       const id = novoId_();
       inserir_('Modelos', { id: id, nome: nome, descricao: texto_(sv.descricao, 500), ativo: 'sim', criado_em: agora, atualizado_em: agora, disciplina_id: disc.id, escopo: escopo, encarregado: enc, modulo: modulo, apartamento: apto });
-      itens.forEach(function (it, i) { inserir_('ModeloItens', { id: novoId_(), modelo_id: id, ordem: String(i + 1), descricao: it.d, criterio: it.c, exige_foto: it.f }); });
+      itens.forEach(function (it, i) { inserir_('ModeloItens', { id: novoId_(), modelo_id: id, ordem: String(i + 1), descricao: it.d, criterio: it.c, exige_foto: it.f, video: it.v }); });
       nomesM[chave(nome, escopo, enc, modulo, apto)] = true; nM++;
     }
     (sv.pontos || []).forEach(function (p) {
@@ -1127,6 +1184,9 @@ const ACOES = {
   getObservacoes: [getObservacoes_, 'T', true],
   salvarRegistro: [salvarRegistro_, 'E', false],
   uploadFoto: [uploadFoto_, 'E', false],
+  uploadVideoParte: [uploadVideoParte_, 'E', false],
+  getVideoParte: [getVideoParte_, 'T', true],
+  excluirVideo: [excluirVideo_, 'A', false],
   salvarFVS: [salvarFVS_, 'E', false],
   reinspecionar: [reinspecionar_, 'E', false],
   salvarObservacao: [salvarObservacao_, 'E', false],
