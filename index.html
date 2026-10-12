@@ -1249,12 +1249,19 @@ function abrirFornecedor(id) {
     } catch (e) { btn.disabled = false; toast(e.message, true); }
   };
 }
-const LOCAIS_TORRE = ["Torre · Hall social", "Torre · Hall de serviço", "Torre · Escadas", "Torre · Elevadores", "Torre · Prumada hidráulica (hall de serviço)", "Torre · Prumada elétrica", "Torre · Shafts", "Torre · Barrilete", "Torre · Reservatório superior", "Torre · Ático", "Torre · Cobertura", "Torre · Fachada", "Técnico · Centro de medição", "Técnico · Gerador", "Técnico · Sala técnica", "Técnico · Casa de bombas", "Subsolo · 1º subsolo (garagem)", "Subsolo · 2º subsolo (garagem)", "Subsolo · Depósitos 1º subsolo", "Subsolo · Depósitos 2º subsolo", "Subsolo · Rampas", "Térreo · Portaria", "Térreo · Hall e circulações", "Térreo · Academia", "Térreo · Salão de beleza", "Térreo · Pilates", "Térreo · Salão de festas", "Térreo · Espaço gourmet", "Térreo · Sala de jogos", "Térreo · Piscina adulto", "Térreo · Piscina infantil", "Térreo · Piscina coberta e aquecida", "Térreo · Quadra", "Térreo · Playground", "Térreo · Pet place", "Térreo · Lounge externo", "Térreo · Vagas de visitantes"];
+const LOCAIS_TORRE = (function () {
+  const l = ['Térreo · Portaria', 'Térreo · Hall e circulações', 'Térreo · Academia', 'Térreo · Salão de beleza', 'Térreo · Pilates', 'Térreo · Salão de festas', 'Térreo · Espaço gourmet', 'Térreo · Sala de jogos', 'Térreo · Piscina adulto', 'Térreo · Piscina infantil', 'Térreo · Piscina coberta e aquecida', 'Térreo · Quadra', 'Térreo · Playground', 'Térreo · Pet place', 'Térreo · Lounge externo', 'Térreo · Vagas de visitantes', 'Térreo · Elevadores', 'Térreo · Escadaria',
+    '1º subsolo · Garagem', '1º subsolo · Depósitos', '1º subsolo · Gerador', '1º subsolo · Sala técnica', '1º subsolo · Centro de medição', '1º subsolo · Hall e elevadores', '1º subsolo · Escadaria', '1º subsolo · Rampa',
+    '2º subsolo · Garagem', '2º subsolo · Depósitos', '2º subsolo · Casa de bombas / reservatórios inferiores', '2º subsolo · Hall e elevadores', '2º subsolo · Escadaria', '2º subsolo · Rampa'];
+  for (let a = 1; a <= 16; a++) { l.push('Torre ' + a + 'º pav. · Hall de serviço'); l.push('Torre ' + a + 'º pav. · Escadaria'); }
+  l.push('Torre · Fachada', 'Torre · Prumadas hidráulicas', 'Torre · Prumada elétrica', 'Ático · Barrilete', 'Ático · Reservatórios superiores', 'Ático · Casa de máquinas / elevadores', 'Ático · Cobertura');
+  return l;
+})();
 function abrirApartamentos() {
   const el = abrirModal('Adicionar apartamentos / locais',
     '<div class="campo-v"><label>Tipo</label><select id="ap-tipo"><option>Apartamento</option><option>Área comum</option></select></div>' +
     '<div class="campo-v"><label>Lista (um por linha ou separados por vírgula)</label><textarea id="ap-lista" style="min-height:140px" placeholder="11&#10;12&#10;21"></textarea></div>' +
-    '<div style="display:flex;gap:8px;flex-wrap:wrap;margin-bottom:10px"><button class="btn sec sm" type="button" id="ap-un">Preencher unidades (11 a 162)</button><button class="btn sec sm" type="button" id="ap-sug">Preencher locais da torre, térreo e subsolos</button></div>' +
+    '<div style="display:flex;gap:8px;flex-wrap:wrap;margin-bottom:10px"><button class="btn sec sm" type="button" id="ap-un">Preencher unidades (11 a 162)</button><button class="btn sec sm" type="button" id="ap-sug">Preencher locais do prédio</button></div>' +
     '',
     { rodape: '<button class="btn" id="ap-salvar" type="button">Adicionar</button>' });
   $('#ap-un', el).onclick = () => { const l = []; for (let a = 1; a <= 16; a++) { l.push(a + '1'); l.push(a + '2'); } $('#ap-tipo', el).value = 'Apartamento'; $('#ap-lista', el).value = l.join('\n'); };
