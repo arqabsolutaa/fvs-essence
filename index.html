@@ -2042,20 +2042,38 @@ async function gerarPDFFVS(id) {
       doc.text('#', 16, y); doc.text('ITEM / CRITÉRIO', 24, y); doc.text('RESULTADO', 112, y); doc.text('OBSERVAÇÃO', 138, y); doc.setTextColor(40, 40, 40); y += 6;
     };
     cab();
-    j.itens.forEach((it, i) => {
+    for (let i = 0; i < j.itens.length; i++) {
+      const it = j.itens[i];
       const t1 = doc.splitTextToSize(it.descricao, 84); const t2 = it.criterio ? doc.splitTextToSize(it.criterio, 84) : [];
       const to = doc.splitTextToSize(it.observacao || '-', 56);
       const alt = Math.max(t1.length * 4 + t2.length * 3.4, to.length * 3.8, 5) + 3;
-      if (y + alt > 280) { doc.addPage(); y = 20; cab(); }
-      if (i % 2 === 0) { doc.setFillColor(250, 248, 243); doc.rect(14, y - 4, 182, alt, 'F'); }
-      doc.setFont('helvetica', 'bold'); doc.setFontSize(8.5); doc.text(String(i + 1), 16, y);
+      const fts = j.fotos.filter(x => x.fvs_item_id === it.id && x.tipo !== 'assinatura');
+      const FW = 42, FH = 32, GAP = 3; // até 4 fotos por linha, alinhadas ao item
+      const linFotos = Math.ceil(fts.length / 4); const altF = fts.length ? linFotos * (FH + 6) + 1 : 0;
+      if (y + alt + Math.min(altF, FH + 7) > 280) { doc.addPage(); y = 20; cab(); }
+      if (i % 2 === 0) { doc.setFillColor(250, 248, 243); doc.rect(14, y - 4, 182, alt + altF, 'F'); }
+      doc.setFont('helvetica', 'bold'); doc.setFontSize(8.5); doc.setTextColor(40, 40, 40); doc.text(String(i + 1), 16, y);
       doc.text(t1, 24, y);
       if (t2.length) { doc.setFont('helvetica', 'normal'); doc.setFontSize(7.5); doc.setTextColor(...COR.na); doc.text(t2, 24, y + t1.length * 4); doc.setTextColor(40, 40, 40); }
-      const r = { C: ['CONFORME', COR.oliva], NC: ['NÃO CONFORME', COR.nc], NA: ['N.A.', COR.na] }[it.resultado] || ['-', COR.na];
+      const r = { C: ['CONFORME', COR.oliva], NC: ['NÃO CONFORME', COR.nc], NA: ['NÃO TEM', COR.na] }[it.resultado] || ['-', COR.na];
       doc.setFont('helvetica', 'bold'); doc.setFontSize(8); doc.setTextColor(...r[1]); doc.text(r[0], 112, y); doc.setTextColor(40, 40, 40);
       doc.setFont('helvetica', 'normal'); doc.setFontSize(8); doc.text(to, 138, y);
       y += alt;
-    });
+      for (let k = 0; k < fts.length; k++) {
+        const col = k % 4;
+        if (col === 0 && k > 0) y += FH + 6;
+        if (col === 0 && y + FH + 6 > 284) { doc.addPage(); y = 20; cab(); }
+        const x = 24 + col * (FW + GAP);
+        doc.setDrawColor(220, 218, 212); doc.setLineWidth(0.2); doc.rect(x, y - 2, FW, FH, 'S');
+        try {
+          const u = await fotoDataUrl(fts[k].id); const d = await dimsImg(u);
+          let w = FW - 2; let hh = w * d.h / d.w; if (hh > FH - 2) { hh = FH - 2; w = hh * d.w / d.h; }
+          doc.addImage(u, 'JPEG', x + (FW - w) / 2, y - 2 + (FH - hh) / 2, w, hh);
+        } catch (e) { doc.setFontSize(7); doc.text('(foto indisponível)', x + 3, y + FH / 2); }
+        if (fts[k].tipo === 'reinspecao') { doc.setFont('helvetica', 'normal'); doc.setFontSize(6.5); doc.setTextColor(...COR.na); doc.text('reinspeção', x, y + FH + 1.5); doc.setTextColor(40, 40, 40); }
+      }
+      if (fts.length) y += FH + 6;
+    }
     const pend = j.pendencias.filter(p => p.status !== 'Cancelada');
     if (pend.length) {
       y += 4; if (y > 255) { doc.addPage(); y = 20; }
@@ -2090,26 +2108,6 @@ async function gerarPDFFVS(id) {
     } else y += 14;
     doc.setDrawColor(...COR.na); doc.setLineWidth(0.3); doc.line(14, y, 90, y);
     doc.setFont('helvetica', 'normal'); doc.setFontSize(9); doc.text((f.assinatura_nome || '') + ' · ' + fmtData(f.data), 14, y + 4.5);
-    // Fotos
-    const fotos = [];
-    j.itens.forEach((it, i) => {
-      j.fotos.filter(x => x.fvs_item_id === it.id && x.tipo !== 'assinatura').forEach(x => fotos.push({ id: x.id, leg: 'Item ' + (i + 1) + (x.tipo === 'reinspecao' ? ' - reinspeção' : '') }));
-    });
-    if (fotos.length) {
-      doc.addPage(); let fy = 20; fy = pdfSecao(doc, 'Registro fotográfico', fy);
-      for (let k = 0; k < fotos.length; k++) {
-        progresso('Montando PDF…', 'Foto ' + (k + 1) + ' de ' + fotos.length);
-        const col = k % 3; if (col === 0 && k > 0) fy += 52;
-        if (fy + 50 > 284) { doc.addPage(); fy = 20; }
-        const x = 14 + col * 62;
-        try {
-          const u = await fotoDataUrl(fotos[k].id); const d = await dimsImg(u);
-          let w = 58; let hh = w * d.h / d.w; if (hh > 44) { hh = 44; w = hh * d.w / d.h; }
-          doc.addImage(u, 'JPEG', x + (58 - w) / 2, fy + (44 - hh) / 2, w, hh);
-        } catch (e) { doc.setFontSize(8); doc.text('(foto indisponível)', x, fy + 20); }
-        doc.setFont('helvetica', 'normal'); doc.setFontSize(8); doc.setTextColor(...COR.dourado); doc.text(fotos[k].leg, x, fy + 48); doc.setTextColor(40, 40, 40);
-      }
-    }
     pdfRodape(doc);
     const dd = String(f.data || '').split('-');
     doc.save(nomeArquivoLimpo(String(f.numero).replace(/-/g, ' - ')).replace(/_/g, ' ') + ' - ' + (dd.length === 3 ? dd[2] + '-' + dd[1] + '-' + dd[0].slice(2) : 'sem-data') + '.pdf');
