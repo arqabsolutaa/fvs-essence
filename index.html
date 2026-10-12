@@ -2020,7 +2020,7 @@ function precarregarCapa() {
 function pdfCapa(doc, f) {
   if (CAPA.torre) { try { doc.addImage(CAPA.torre, 'JPEG', 0, 0, 210, 297); } catch (e) { doc.setFillColor(40, 43, 46); doc.rect(0, 0, 210, 297, 'F'); } }
   else { doc.setFillColor(40, 43, 46); doc.rect(0, 0, 210, 297, 'F'); }
-  if (CAPA.logoB) { try { doc.addImage(CAPA.logoB, 'PNG', 80, 106, 50, 50 * 11.2 / 34); } catch (e) { /* ignora */ } }
+  if (CAPA.logoB) { try { doc.addImage(CAPA.logoB, 'PNG', 70, 103, 70, 70 * 11.2 / 34); } catch (e) { /* ignora */ } }
   doc.setTextColor(255, 255, 255); doc.setFont('helvetica', 'bold'); doc.setFontSize(20);
   doc.text('FICHA DE VERIFICAÇÃO', 105, 139, { align: 'center' }); doc.text('DE SERVIÇO', 105, 149, { align: 'center' });
   doc.setFont('helvetica', 'normal'); doc.setFontSize(12.5); doc.setTextColor(225, 225, 225); doc.text('Essence Residence', 105, 161, { align: 'center' });
