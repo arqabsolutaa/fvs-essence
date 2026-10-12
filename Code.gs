@@ -14,7 +14,7 @@
  * Cadastros → Usuários; só registram e veem as próprias fotos de andamento).
  */
 
-const VERSAO = '1.12.0';
+const VERSAO = '1.13.0';
 /** Enquanto true, usuário que AINDA NÃO tem senha definida entra sem senha. Quem já tem senha continua exigindo. */
 const PERMITIR_SEM_SENHA = false;
 const TZ = 'America/Sao_Paulo';
@@ -53,16 +53,28 @@ const ABAS = {
 
 function props_() { return PropertiesService.getScriptProperties(); }
 
+// Memória só desta execução (o Apps Script zera a cada chamada): evita reabrir a planilha e reler abas várias vezes.
+let SS_MEM_ = null;
+const ABAS_MEM_ = {};
+const LEITURA_MEM_ = {};
+
 function ss_() {
+  if (SS_MEM_) return SS_MEM_;
   const id = props_().getProperty('SS_ID');
-  return id ? SpreadsheetApp.openById(id) : SpreadsheetApp.getActiveSpreadsheet();
+  SS_MEM_ = id ? SpreadsheetApp.openById(id) : SpreadsheetApp.getActiveSpreadsheet();
+  return SS_MEM_;
 }
 
 function aba_(nome) {
+  if (ABAS_MEM_[nome]) return ABAS_MEM_[nome];
   const sh = ss_().getSheetByName(nome);
   if (!sh) throw new Error('Aba "' + nome + '" não encontrada. Rode setup() no Apps Script.');
+  ABAS_MEM_[nome] = sh;
   return sh;
 }
+
+/** Toda escrita numa aba invalida a leitura guardada dela. */
+function invalidar_(nome) { delete LEITURA_MEM_[nome]; }
 
 function agora_() { return Utilities.formatDate(new Date(), TZ, 'yyyy-MM-dd HH:mm:ss'); }
 
@@ -86,9 +98,11 @@ function dataValida_(s) { return typeof s === 'string' && /^\d{4}-\d{2}-\d{2}$/.
 function lerAba_(nome) {
   const sh = aba_(nome);
   const cab = ABAS[nome];
-  const n = sh.getLastRow();
-  if (n < 2) return [];
-  const v = sh.getRange(2, 1, n - 1, cab.length).getValues();
+  if (!LEITURA_MEM_[nome]) {
+    const n = sh.getLastRow();
+    LEITURA_MEM_[nome] = n < 2 ? [] : sh.getRange(2, 1, n - 1, cab.length).getValues();
+  }
+  const v = LEITURA_MEM_[nome];
   return v.map(function (linha, i) {
     const o = {};
     cab.forEach(function (c, j) {
@@ -107,6 +121,7 @@ function linhaDe_(nome, obj) { return ABAS[nome].map(function (c) { const v = ob
 
 function inserir_(nome, obj) {
   const sh = aba_(nome);
+  invalidar_(nome);
   const linha = linhaDe_(nome, obj);
   sh.getRange(sh.getLastRow() + 1, 1, 1, linha.length).setValues([linha]);
 }
@@ -125,6 +140,7 @@ function achar_(nome, id) {
 function atualizar_(nome, id, patch) {
   const f = achar_(nome, id);
   if (!f) throw new Error('Registro não encontrado em ' + nome + '.');
+  invalidar_(nome);
   const cab = ABAS[nome];
   const atual = f.sh.getRange(f.linha, 1, 1, cab.length).getValues()[0];
   cab.forEach(function (c, j) { if (Object.prototype.hasOwnProperty.call(patch, c)) atual[j] = patch[c]; });
@@ -134,6 +150,7 @@ function atualizar_(nome, id, patch) {
 /** Reescreve todas as linhas de dados de uma aba (usado só para abas filhas pequenas). */
 function reescrever_(nome, objs) {
   const sh = aba_(nome);
+  invalidar_(nome);
   const cab = ABAS[nome];
   const n = sh.getLastRow();
   if (n >= 2) sh.getRange(2, 1, n - 1, cab.length).clearContent();
@@ -828,7 +845,7 @@ function excluirFoto_(req, u) {
   backupAntes_();
   auditarExclusao_(u, 'Fotos', foto); // o arquivo continua guardado no Drive
   const f = achar_('Fotos', id);
-  if (f) f.sh.deleteRow(f.linha);
+  if (f) { invalidar_('Fotos'); f.sh.deleteRow(f.linha); }
   registrarLog_(u, 'foto_excluida', id, foto.tipo);
   return { ok: true };
 }
@@ -836,6 +853,7 @@ function excluirFoto_(req, u) {
 function removerLinhas_(nome, coluna, valor, u) {
   const linhas = lerAba_(nome).filter(function (x) { return String(x[coluna]) === String(valor); });
   linhas.forEach(function (x) { auditarExclusao_(u, nome, x); });
+  invalidar_(nome);
   linhas.map(function (x) { return x._linha; }).sort(function (a, b) { return b - a; })
     .forEach(function (n) { aba_(nome).deleteRow(n); });
 }
@@ -1137,6 +1155,40 @@ function perfilPermitido_(regra, info) {
   return perfil === 'admin';
 }
 
+/**
+ * Várias etapas numa chamada só (ex.: a ficha + as fotos + a assinatura): o app envia tudo de uma vez,
+ * em vez de uma chamada por foto. Cada etapa passa pela mesma checagem de permissão e todas rodam sob um único bloqueio.
+ * Etapa com "tolerante" que falhar não interrompe o lote; qualquer outra falha interrompe e devolve o erro.
+ */
+function lote_(req, usuario, info) {
+  const passos = Array.isArray(req.passos) ? req.passos.slice(0, 8) : [];
+  if (!passos.length) return erro_('Lote vazio.');
+  const regras = passos.map(function (p) {
+    const a = p && ACOES[p.action];
+    if (!a || p.action === 'bootstrap') throw new Error('Ação desconhecida.');
+    if (!perfilPermitido_(a[1], info)) throw new Error('Acesso restrito.');
+    return a;
+  });
+  const escreve = regras.some(function (a) { return !a[2]; });
+  let lock = null;
+  if (escreve) {
+    lock = LockService.getScriptLock();
+    try { lock.waitLock(30000); }
+    catch (errLock) { return { ok: false, ocupado: true, erro: 'Servidor ocupado. Tente de novo em instantes.' }; }
+  }
+  try {
+    const resultados = [];
+    passos.forEach(function (p, i) {
+      const r2 = {};
+      Object.keys(p.params || {}).forEach(function (k) { r2[k] = p.params[k]; });
+      r2.action = p.action; r2.token = req.token;
+      try { resultados.push(regras[i][0](r2, usuario, info)); }
+      catch (e) { if (!p.tolerante) throw e; resultados.push({ ok: false, erro: String(e && e.message || e) }); }
+    });
+    return { ok: true, resultados: resultados };
+  } finally { if (lock) lock.releaseLock(); }
+}
+
 /* ------------------------------------------------------------------ */
 /* Ponto de entrada                                                    */
 /* ------------------------------------------------------------------ */
@@ -1154,6 +1206,7 @@ function doPost(e) {
     const usuario = sessao_(req.token);
     const info = usuario ? infoUsuario_(usuario) : null; // usuário arquivado perde o acesso na hora
     if (!info) return json_({ ok: false, sessao: false, erro: 'Sessão expirada. Entre novamente.' });
+    if (req.action === 'lote') return json_(lote_(req, usuario, info));
     const acao = ACOES[req.action];
     if (!acao) return json_(erro_('Ação desconhecida.'));
     if (!perfilPermitido_(acao[1], info)) return json_(erro_('Acesso restrito.'));

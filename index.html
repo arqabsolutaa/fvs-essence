@@ -1541,6 +1541,23 @@ function aguardandoHTML(tipos) {
 async function enviarItemFila(it) {
   if (it.passos) {
     while (it.feitos < it.passos.length) {
+      // junta etapas seguidas (ficha + fotos + assinatura) numa chamada só: até 6 etapas e ~1,8 MB por chamada
+      const lote = []; let peso = 0;
+      for (let k = it.feitos; k < it.passos.length && lote.length < 6; k++) {
+        const p = it.passos[k]; const pz = ((p.params && p.params.dataUrl) || '').length + 400;
+        if (lote.length && peso + pz > 1800000) break;
+        lote.push(p); peso += pz;
+      }
+      if (lote.length > 1 && !S.semLote) {
+        try {
+          await api('lote', { passos: lote.map(p => ({ action: p.action, params: p.params, tolerante: !!p.tolerante })) }, 1);
+          it.feitos += lote.length; await filaPut(it); continue;
+        } catch (e) {
+          if (e.rede || e.ocupado || e.sessao) throw e;
+          if (/desconhecida/i.test(e.message || '')) S.semLote = true; // Code.gs antigo: volta a enviar uma etapa por vez
+          // outro erro: refaz esta etapa isolada abaixo, para saber qual falhou (repetir é seguro)
+        }
+      }
       const p = it.passos[it.feitos];
       try { await api(p.action, p.params, 1); }
       catch (e) { if (!(p.tolerante && e.servidor && !e.sessao)) throw e; } // etapa "tolerante": já feita antes ou não essencial
