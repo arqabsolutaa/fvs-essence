@@ -1250,9 +1250,11 @@ function abrirFornecedor(id) {
   };
 }
 const LOCAIS_TORRE = (function () {
-  const l = ['Térreo · Portaria', 'Térreo · Hall e circulações', 'Térreo · Academia', 'Térreo · Salão de beleza', 'Térreo · Pilates', 'Térreo · Salão de festas', 'Térreo · Espaço gourmet', 'Térreo · Sala de jogos', 'Térreo · Piscina adulto', 'Térreo · Piscina infantil', 'Térreo · Piscina coberta e aquecida', 'Térreo · Quadra', 'Térreo · Playground', 'Térreo · Pet place', 'Térreo · Lounge externo', 'Térreo · Vagas de visitantes', 'Térreo · Elevadores', 'Térreo · Escadaria',
-    '1º subsolo · Garagem', '1º subsolo · Depósitos', '1º subsolo · Gerador', '1º subsolo · Sala técnica', '1º subsolo · Centro de medição', '1º subsolo · Hall e elevadores', '1º subsolo · Escadaria', '1º subsolo · Rampa',
-    '2º subsolo · Garagem', '2º subsolo · Depósitos', '2º subsolo · Casa de bombas / reservatórios inferiores', '2º subsolo · Hall e elevadores', '2º subsolo · Escadaria', '2º subsolo · Rampa'];
+  const l = ['Térreo · Portaria', 'Térreo · Hall e circulações', 'Térreo · Academia', 'Térreo · Salão de beleza', 'Térreo · Pilates', 'Térreo · Salão de festas', 'Térreo · Espaço gourmet', 'Térreo · Sala de jogos', 'Térreo · Piscina adulto', 'Térreo · Piscina infantil', 'Térreo · Piscina coberta e aquecida', 'Térreo · Quadra', 'Térreo · Playground', 'Térreo · Pet place', 'Térreo · Lounge externo', 'Térreo · Vagas de visitantes', 'Térreo · Casa de bombas (sob o deck da piscina coberta)', 'Térreo · Elevadores', 'Térreo · Escadaria',
+    '1º subsolo · Garagem', '1º subsolo · Gerador', '1º subsolo · Sala técnica', '1º subsolo · Centro de medição', '1º subsolo · Hall e elevadores', '1º subsolo · Escadaria', '1º subsolo · Rampa',
+    '2º subsolo · Garagem', '2º subsolo · Reservatórios inferiores', '2º subsolo · Hall e elevadores', '2º subsolo · Escadaria', '2º subsolo · Rampa'];
+  for (let d = 1; d <= 13; d++) l.push('1º subsolo · Depósito ' + (d < 10 ? '0' : '') + d);
+  for (let d = 20; d <= 30; d++) l.push('2º subsolo · Depósito ' + d);
   for (let a = 1; a <= 16; a++) { l.push('Torre ' + a + 'º pav. · Hall de serviço'); l.push('Torre ' + a + 'º pav. · Escadaria'); }
   l.push('Torre · Fachada', 'Torre · Prumadas hidráulicas', 'Torre · Prumada elétrica', 'Ático · Barrilete', 'Ático · Reservatórios superiores', 'Ático · Casa de máquinas / elevadores', 'Ático · Cobertura');
   return l;
