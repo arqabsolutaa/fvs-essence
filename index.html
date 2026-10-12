@@ -1991,7 +1991,35 @@ function novoPDF() {
   return new window.jspdf.jsPDF({ unit: 'mm', format: 'a4' });
 }
 const LOGO = { data: null };
+const CAPA = { torre: null, logoB: null };
+function precarregarCapa() {
+  fetch('assets/capa-torre.jpg').then(r => r.blob()).then(b => { const fr = new FileReader(); fr.onload = () => { CAPA.torre = fr.result; }; fr.readAsDataURL(b); }).catch(() => {});
+  const im = new Image();
+  im.onload = () => { try { const c = document.createElement('canvas'); c.width = im.naturalWidth; c.height = im.naturalHeight; const g = c.getContext('2d'); g.drawImage(im, 0, 0); g.globalCompositeOperation = 'source-in'; g.fillStyle = '#fff'; g.fillRect(0, 0, c.width, c.height); CAPA.logoB = c.toDataURL('image/png'); } catch (e) { /* sem logo branca */ } };
+  im.src = 'assets/logo-absoluta.png';
+}
+function pdfCapa(doc, f) {
+  if (CAPA.torre) { try { doc.addImage(CAPA.torre, 'JPEG', -13.8, 0, 237.6, 297); } catch (e) { doc.setFillColor(40, 43, 46); doc.rect(0, 0, 210, 297, 'F'); } }
+  else { doc.setFillColor(40, 43, 46); doc.rect(0, 0, 210, 297, 'F'); }
+  doc.setGState(new doc.GState({ opacity: 0.35 })); doc.setFillColor(15, 17, 19); doc.rect(0, 0, 210, 297, 'F');
+  // caixa translúcida
+  doc.setGState(new doc.GState({ opacity: 0.3 })); doc.setFillColor(255, 255, 255); doc.roundedRect(20, 168, 170, 104, 7, 7, 'F');
+  doc.setGState(new doc.GState({ opacity: 0.55 })); doc.setDrawColor(255, 255, 255); doc.setLineWidth(0.35); doc.roundedRect(20, 168, 170, 104, 7, 7, 'S');
+  doc.setGState(new doc.GState({ opacity: 1 }));
+  if (CAPA.logoB) { try { doc.addImage(CAPA.logoB, 'PNG', 75, 22, 60, 60 * 11.2 / 34); } catch (e) { /* ignora */ } }
+  doc.setTextColor(255, 255, 255); doc.setFont('helvetica', 'bold'); doc.setFontSize(20);
+  doc.text('FICHA DE VERIFICAÇÃO', 105, 186, { align: 'center' }); doc.text('DE SERVIÇO', 105, 196, { align: 'center' });
+  doc.setFont('helvetica', 'normal'); doc.setFontSize(10.5); doc.setTextColor(225, 225, 225); doc.text('Essence Residence', 105, 206, { align: 'center' });
+  const dados = [['Serviço', f.modelo_nome], ['Apartamento / local', f.apartamento], ['Data', fmtData(f.data)], ['Ficha', f.numero]];
+  dados.forEach((p, k) => {
+    const x = 32 + (k % 2) * 80; const yy = 220 + Math.floor(k / 2) * 24;
+    doc.setFont('helvetica', 'bold'); doc.setFontSize(7); doc.setTextColor(200, 200, 200); doc.text(p[0].toUpperCase(), x, yy);
+    doc.setFont('helvetica', 'normal'); doc.setFontSize(11); doc.setTextColor(255, 255, 255); doc.text(doc.splitTextToSize(String(p[1] || '-'), 72)[0], x, yy + 6);
+  });
+  doc.setTextColor(40, 40, 40);
+}
 function precarregarLogo() {
+  precarregarCapa();
   fetch('assets/logo-absoluta.png').then(r => r.blob()).then(b => { const fr = new FileReader(); fr.onload = () => { LOGO.data = fr.result; }; fr.readAsDataURL(b); }).catch(() => {});
 }
 function pdfCabecalho(doc, titulo, numero) {
@@ -2003,9 +2031,9 @@ function pdfCabecalho(doc, titulo, numero) {
   doc.setDrawColor(...COR.dourado); doc.setLineWidth(0.8); doc.line(0, 30, 210, 30);
   doc.setTextColor(40, 40, 40);
 }
-function pdfRodape(doc) {
+function pdfRodape(doc, pular) {
   const n = doc.getNumberOfPages();
-  for (let p = 1; p <= n; p++) {
+  for (let p = 1 + (pular || 0); p <= n; p++) {
     doc.setPage(p); doc.setFont('helvetica', 'normal'); doc.setFontSize(8); doc.setTextColor(...COR.dourado);
     doc.text('Absoluta Construtora e Incorporadora · Essence Residence · São Bernardo do Campo/SP', 105, 292, { align: 'center' });
     doc.text('Página ' + p + ' de ' + n, 196, 292, { align: 'right' });
@@ -2026,6 +2054,7 @@ async function gerarPDFFVS(id) {
     const j = await api('getFVS', { id: id });
     const f = j.fvs; const doc = novoPDF();
     await prefetchFotos(j.fotos.map(x => x.id), (n, t) => progresso('Montando PDF…', 'Carregando fotos ' + n + ' de ' + t));
+    pdfCapa(doc, f); doc.addPage();
     pdfCabecalho(doc, 'FICHA DE VERIFICAÇÃO DE SERVIÇO', f.numero);
     let y = 40;
     const info = [['Data', fmtData(f.data)], ['Apartamento / local', f.apartamento], ['Serviço', f.modelo_nome], ['Fornecedor', f.fornecedor_nome || '-'], ['Responsável pela obra', f.responsavel_obra || '-'], ['Situação', f.status]];
@@ -2111,7 +2140,7 @@ async function gerarPDFFVS(id) {
     } else y += 14;
     doc.setDrawColor(...COR.na); doc.setLineWidth(0.3); doc.line(14, y, 90, y);
     doc.setFont('helvetica', 'normal'); doc.setFontSize(9); doc.text((f.assinatura_nome || '') + ' · ' + fmtData(f.data), 14, y + 4.5);
-    pdfRodape(doc);
+    pdfRodape(doc, 1);
     const dd = String(f.data || '').split('-');
     doc.save(nomeArquivoLimpo(String(f.numero).replace(/-/g, ' - ')).replace(/_/g, ' ') + ' - ' + (dd.length === 3 ? dd[2] + '-' + dd[1] + '-' + dd[0].slice(2) : 'sem-data') + '.pdf');
     progresso(null);
