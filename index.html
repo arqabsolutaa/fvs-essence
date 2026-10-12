@@ -2037,42 +2037,45 @@ async function gerarPDFFVS(id) {
     });
     y += 38;
     y = pdfSecao(doc, 'Itens verificados', y);
-    const cab = () => {
-      doc.setFillColor(...COR.marrom); doc.rect(14, y - 4, 182, 6.5, 'F'); doc.setTextColor(255, 255, 255); doc.setFont('helvetica', 'bold'); doc.setFontSize(8);
-      doc.text('#', 16, y); doc.text('ITEM / CRITÉRIO', 24, y); doc.text('RESULTADO', 112, y); doc.text('OBSERVAÇÃO', 138, y); doc.setTextColor(40, 40, 40); y += 6;
-    };
-    cab();
+    y += 2;
     for (let i = 0; i < j.itens.length; i++) {
       const it = j.itens[i];
-      const t1 = doc.splitTextToSize(it.descricao, 84); const t2 = it.criterio ? doc.splitTextToSize(it.criterio, 84) : [];
-      const to = doc.splitTextToSize(it.observacao || '-', 56);
-      const alt = Math.max(t1.length * 4 + t2.length * 3.4, to.length * 3.8, 5) + 3;
+      const tit = doc.splitTextToSize((i + 1) + '.  ' + it.descricao, 128);
+      const crit = it.criterio ? doc.splitTextToSize(it.criterio, 128) : [];
+      const obs = it.observacao ? doc.splitTextToSize('Obs.: ' + it.observacao, 170) : [];
       const fts = j.fotos.filter(x => x.fvs_item_id === it.id && x.tipo !== 'assinatura');
-      const FW = 42, FH = 32, GAP = 3; // até 4 fotos por linha, alinhadas ao item
-      const linFotos = Math.ceil(fts.length / 4); const altF = fts.length ? linFotos * (FH + 6) + 1 : 0;
-      if (y + alt + Math.min(altF, FH + 7) > 280) { doc.addPage(); y = 20; cab(); }
-      if (i % 2 === 0) { doc.setFillColor(250, 248, 243); doc.rect(14, y - 4, 182, alt + altF, 'F'); }
-      doc.setFont('helvetica', 'bold'); doc.setFontSize(8.5); doc.setTextColor(40, 40, 40); doc.text(String(i + 1), 16, y);
-      doc.text(t1, 24, y);
-      if (t2.length) { doc.setFont('helvetica', 'normal'); doc.setFontSize(7.5); doc.setTextColor(...COR.na); doc.text(t2, 24, y + t1.length * 4); doc.setTextColor(40, 40, 40); }
+      const FW = 40, FH = 28, GAP = 3;
+      const altT = tit.length * 4.4 + crit.length * 3.6 + obs.length * 3.8 + 2;
+      const altF = fts.length ? Math.ceil(fts.length / 4) * (FH + GAP) : 0;
+      if (y + altT + Math.min(altF, FH + GAP) > 282) { doc.addPage(); y = 20; }
       const r = { C: ['CONFORME', COR.oliva], NC: ['NÃO CONFORME', COR.nc], NA: ['NÃO TEM', COR.na] }[it.resultado] || ['-', COR.na];
-      doc.setFont('helvetica', 'bold'); doc.setFontSize(8); doc.setTextColor(...r[1]); doc.text(r[0], 112, y); doc.setTextColor(40, 40, 40);
-      doc.setFont('helvetica', 'normal'); doc.setFontSize(8); doc.text(to, 138, y);
-      y += alt;
+      const y0 = y;
+      doc.setFont('helvetica', 'bold'); doc.setFontSize(9.5); doc.setTextColor(35, 35, 35); doc.text(tit, 19, y + 3);
+      let yy = y + 3 + tit.length * 4.4;
+      if (crit.length) { doc.setFont('helvetica', 'normal'); doc.setFontSize(7.5); doc.setTextColor(...COR.na); doc.text(crit, 19, yy - 0.8); yy += crit.length * 3.6; }
+      if (obs.length) { doc.setFont('helvetica', 'normal'); doc.setFontSize(8); doc.setTextColor(70, 70, 70); doc.text(obs, 19, yy); yy += obs.length * 3.8; }
+      // etiqueta do resultado
+      doc.setFont('helvetica', 'bold'); doc.setFontSize(7.5);
+      const tw = doc.getTextWidth(r[0]) + 6;
+      doc.setDrawColor(...r[1]); doc.setLineWidth(0.3); doc.roundedRect(196 - tw, y + 0.2, tw, 5.6, 2.8, 2.8, 'S');
+      doc.setTextColor(...r[1]); doc.text(r[0], 196 - tw / 2, y + 4.1, { align: 'center' });
+      doc.setTextColor(40, 40, 40);
+      yy += 1.5;
       for (let k = 0; k < fts.length; k++) {
         const col = k % 4;
-        if (col === 0 && k > 0) y += FH + 6;
-        if (col === 0 && y + FH + 6 > 284) { doc.addPage(); y = 20; cab(); }
-        const x = 24 + col * (FW + GAP);
-        doc.setDrawColor(220, 218, 212); doc.setLineWidth(0.2); doc.rect(x, y - 2, FW, FH, 'S');
+        if (col === 0 && k > 0) yy += FH + GAP;
+        if (col === 0 && yy + FH > 284) { doc.setFillColor(...r[1]); doc.rect(14, y0 - 1, 1, yy - y0, 'F'); doc.addPage(); y = 20; yy = 20; }
+        const x = 19 + col * (FW + GAP);
         try {
           const u = await fotoDataUrl(fts[k].id); const d = await dimsImg(u);
-          let w = FW - 2; let hh = w * d.h / d.w; if (hh > FH - 2) { hh = FH - 2; w = hh * d.w / d.h; }
-          doc.addImage(u, 'JPEG', x + (FW - w) / 2, y - 2 + (FH - hh) / 2, w, hh);
-        } catch (e) { doc.setFontSize(7); doc.text('(foto indisponível)', x + 3, y + FH / 2); }
-        if (fts[k].tipo === 'reinspecao') { doc.setFont('helvetica', 'normal'); doc.setFontSize(6.5); doc.setTextColor(...COR.na); doc.text('reinspeção', x, y + FH + 1.5); doc.setTextColor(40, 40, 40); }
+          let w = FW; let hh = w * d.h / d.w; if (hh > FH) { hh = FH; w = hh * d.w / d.h; }
+          doc.addImage(u, 'JPEG', x, yy, w, hh);
+        } catch (e) { doc.setFontSize(7); doc.text('(foto indisponível)', x + 2, yy + FH / 2); }
+        if (fts[k].tipo === 'reinspecao') { doc.setFont('helvetica', 'normal'); doc.setFontSize(6.5); doc.setTextColor(...COR.na); doc.text('reinspeção', x, yy + FH + 2); doc.setTextColor(40, 40, 40); }
       }
-      if (fts.length) y += FH + 6;
+      if (fts.length) yy += FH + GAP;
+      doc.setFillColor(...r[1]); doc.rect(14, y - 1, 1, yy - y - 1, 'F'); // barra lateral na cor do resultado
+      y = yy + 4;
     }
     const pend = j.pendencias.filter(p => p.status !== 'Cancelada');
     if (pend.length) {
