@@ -1174,8 +1174,9 @@ function abrirModelo(id, duplicar) {
 }
 function encarregadosDe(discId) { return S.d.usuarios.filter(u => ativo(u) && u.perfil !== 'completo' && u.perfil !== 'consulta' && String(u.disciplinas || '').split(',').indexOf(discId) >= 0).map(u => u.nome).sort(nat); }
 function atualizarEncModelo() { const s = $('#m-enc'); if (s) s.innerHTML = opcoes(encarregadosDe(M.disciplina_id), M.encarregado, 'Todos da disciplina'); }
+function mFotoTodos(v) { M.itens.forEach(i => { i.exige_foto = v; }); desenharModeloItens(); }
 function desenharModeloItens() {
-  $('#m-itens').innerHTML = M.itens.map((it, i) => '<div class="card"><div class="campo-v"><label>Item ' + (i + 1) + '</label><input type="text" value="' + h(it.descricao) + '" placeholder="O que será verificado" oninput="M.itens[' + i + '].descricao=this.value"></div>' +
+  $('#m-itens').innerHTML = (M.itens.length > 1 ? '<div class="acoes" style="margin-bottom:8px"><button class="btn sec sm" type="button" onclick="mFotoTodos(true)">Foto em todos os itens</button><button class="btn sec sm" type="button" onclick="mFotoTodos(false)">Tirar foto de todos</button></div>' : '') + M.itens.map((it, i) => '<div class="card"><div class="campo-v"><label>Item ' + (i + 1) + '</label><input type="text" value="' + h(it.descricao) + '" placeholder="O que será verificado" oninput="M.itens[' + i + '].descricao=this.value"></div>' +
     '<div class="campo-v"><label>Como conferir (opcional)</label><textarea placeholder="Só se precisar explicar" oninput="M.itens[' + i + '].criterio=this.value">' + h(it.criterio) + '</textarea></div>' +
     '<label style="display:flex;gap:8px;align-items:center;margin:4px 0 10px"><input type="checkbox" ' + (it.exige_foto ? 'checked' : '') + ' onchange="M.itens[' + i + '].exige_foto=this.checked"> Foto obrigatória neste item</label>' +
     '<div class="acoes"><button class="btn sec sm" type="button" onclick="mMove(' + i + ',-1)">↑</button><button class="btn sec sm" type="button" onclick="mMove(' + i + ',1)">↓</button>' +
@@ -1424,9 +1425,13 @@ function viewBiblioteca() {
       a.servicos.map((sv, si) => {
         const tem = !!(destinoArea(a).disc && temServico(a, sv.nome));
         return '<div class="bib-sv"><label><input type="checkbox" data-a="' + ai + '" data-sv="' + ai + '-' + si + '" ' + (tem ? 'disabled' : (BB.sel[ai + '-' + si] ? 'checked' : '')) + ' onchange="bibAtualizar()"> <b>' + h(sv.nome) + '</b> <span class="sub">' + sv.itens.length + ' itens' + (sv.pontos.length ? ' · ' + sv.pontos.length + ' pontos de foto' : '') + (tem ? ' · já adicionado assim' : '') + '</span></label>' +
-          '<details><summary class="sub">Ver itens</summary><ol class="bib-itens">' + sv.itens.map(i => '<li>' + h(i[0]) + (i[2] ? ' <span class="sub">· foto obrigatória</span>' : '') + (i[1] ? '<br><span class="sub">' + h(i[1]) + '</span>' : '') + '</li>').join('') + '</ol></details></div>';
+          '<details><summary class="sub">Ver itens e definir fotos</summary><div class="bib-acoes"><button class="btn sec sm" type="button" onclick="bibFotoTodos(this,' + ai + ',' + si + ',true)">Foto em todos</button><button class="btn sec sm" type="button" onclick="bibFotoTodos(this,' + ai + ',' + si + ',false)">Sem foto</button></div><ol class="bib-itens">' + sv.itens.map((i, ii) => '<li>' + h(i[0]) + (i[1] ? '<br><span class="sub">' + h(i[1]) + '</span>' : '') + '<br><label class="sub" style="display:inline-flex;gap:6px;align-items:center;margin-top:2px"><input type="checkbox" ' + (i[2] ? 'checked' : '') + ' onchange="LIB[' + ai + '].servicos[' + si + '].itens[' + ii + '][2]=this.checked"> Foto obrigatória</label></li>').join('') + '</ol></details></div>';
       }).join('') + '</details>').join('') + '</div>' +
     '<div class="bib-barra"><button class="btn" id="bib-add" type="button" onclick="bibAdicionar()" disabled>Marque os serviços</button></div>';
+}
+function bibFotoTodos(btn, ai, si, v) {
+  LIB[ai].servicos[si].itens.forEach(i => { i[2] = v; });
+  btn.closest('details').querySelectorAll('ol input[type=checkbox]').forEach(c => { c.checked = v; });
 }
 async function bibAdicionar() {
   const marcados = Array.from(document.querySelectorAll('#bib input[data-sv]:checked')).map(i => i.dataset.sv.split('-').map(Number));
