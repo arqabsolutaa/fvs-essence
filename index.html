@@ -294,6 +294,7 @@ const S = {
     painel: { disc: '', enc: '', mod: '' },
     reg: { apto: '', disc: '', ponto: '' },
     obs: { disc: '', status: '', local: '' },
+    conf: { disc: '', status: 'Aberta', local: '' },
     cob: { disc: '' }
   },
   hist: { aba: 'log', log: null, excl: null }
@@ -579,7 +580,7 @@ async function tentarReconectar() {
 /* ================================================================== */
 function abasDoPerfil() {
   const base = [['fvs', 'Checklists'], ['pend', 'Pendências'], ['and', 'Fotos'], ['obs', 'Observações gerais']];
-  if (S.admin) return [['painel', 'Painel']].concat(base).concat([['modelos', 'Modelos'], ['bib', 'Biblioteca'], ['cad', 'Cadastros'], ['hist', 'Histórico']]);
+  if (S.admin) return [['painel', 'Painel'], ['conf', 'Conferência geral']].concat(base).concat([['modelos', 'Modelos'], ['bib', 'Biblioteca'], ['cad', 'Cadastros'], ['hist', 'Histórico']]);
   if (S.perfil === 'consulta') return [['painel', 'Painel']].concat(base);
   return base;
 }
@@ -600,6 +601,7 @@ function render() {
   else if (S.aba === 'pend') v.innerHTML = viewPend();
   else if (S.aba === 'and') v.innerHTML = viewAndamento();
   else if (S.aba === 'obs') { v.innerHTML = viewObs(); if (!S.obs) carregarObs(); }
+  else if (S.aba === 'conf') { v.innerHTML = viewObs(true); if (!S.obs) carregarObs(); }
   else if (S.aba === 'bib') { v.innerHTML = viewBiblioteca(); bibAtualizar(); }
   else if (S.aba === 'modelos') v.innerHTML = viewModelos();
   else if (S.aba === 'cad') v.innerHTML = viewCadastros();
@@ -1359,50 +1361,51 @@ async function carregarObs() {
   try { const j = await api('getObservacoes'); S.obs = { lista: j.observacoes, fotos: j.fotos }; }
   catch (e) { toast(e.message, true); S.obs = S.obs || { lista: [], fotos: [] }; }
   finally { S.obsCarregando = false; }
-  if (S.aba === 'obs') render();
+  if (S.aba === 'obs' || S.aba === 'conf') render();
 }
+const CONF = 'Conferência geral';
 function cardObs(o, fotos) {
   const aberta = o.status !== 'Resolvida';
   return '<div class="card"><div class="linha-item"><div class="info"><b>' + h(o.disciplina_nome) + (o.local ? ' · ' + h(o.local) : '') + '</b>' +
-    '<div class="sub">' + h(fmtDataHora(o.criado_em)) + ' · ' + h(o.criado_por) + (o.relacionada ? ' · Relacionada a: ' + h(o.relacionada) : '') + '</div></div>' +
+    '<div class="sub">' + h(fmtDataHora(o.criado_em)) + ' · ' + h(o.criado_por) + (o.relacionada && o.relacionada !== CONF ? ' · Relacionada a: ' + h(o.relacionada) : '') + '</div></div>' +
     '<span class="badge ' + (aberta ? 'nc' : 'ok') + '">' + (aberta ? 'Aberta' : 'Resolvida') + '</span></div>' +
     '<p class="reg-leg">' + h(o.texto).replace(/\n/g, '<br>') + '</p>' +
     (fotos.length ? '<div class="fotos">' + fotos.map(f => '<div class="th g"><img data-foto="' + h(f.id) + '" alt="" onclick="abrirLightbox(\'' + h(f.id) + '\')">' + (S.admin ? '<button type="button" aria-label="Excluir foto" onclick="excluirFotoGeral(\'' + h(f.id) + '\',\'obs\')">×</button>' : '') + '</div>').join('') + '</div>' : '') +
     '<div class="acoes">' + (soLeitura() ? '' : '<label class="btn sec sm">+ Foto<input type="file" accept="image/*" multiple hidden onchange="obsAddFoto(\'' + o.id + '\',this)"></label>') +
     (S.admin ? '<button class="btn sec sm" type="button" onclick="resolverObs(\'' + o.id + '\',' + (aberta ? 'true' : 'false') + ')">' + (aberta ? 'Marcar como resolvida' : 'Reabrir') + '</button><button class="btn perigo sm" type="button" onclick="excluirObs(\'' + o.id + '\')">Excluir</button>' : '') + '</div></div>';
 }
-function viewObs() {
-  const F = S.filtros.obs;
-  const novo = soLeitura() ? '' : '<button class="btn" type="button" onclick="abrirNovaObs()">+ Nova observação</button>';
-  const cab = '<div class="titulo-sec"><h2>Observações gerais</h2><div class="acoes"><button class="btn sec sm" type="button" onclick="S.obs=null;render()">Atualizar</button>' + (S.obs && S.obs.lista.length ? '<button class="btn sec sm" type="button" onclick="gerarPDFObs()">Gerar PDF</button>' : '') + novo + '</div></div>' +
+function viewObs(conf) {
+  const K = conf ? 'conf' : 'obs'; const F = S.filtros[K];
+  const novo = soLeitura() ? '' : '<button class="btn" type="button" onclick="abrirNovaObs(' + (conf ? 'true' : '') + ')">+ ' + (conf ? 'Novo item' : 'Nova observação') + '</button>';
+  const cab = '<div class="titulo-sec"><h2>' + (conf ? 'Conferência geral' : 'Observações gerais') + '</h2><div class="acoes"><button class="btn sec sm" type="button" onclick="S.obs=null;render()">Atualizar</button>' + (S.obs && S.obs.lista.length ? '<button class="btn sec sm" type="button" onclick="gerarPDFObs(' + (conf ? 'true' : '') + ')">Gerar PDF</button>' : '') + novo + '</div></div>' +
     '';
   if (!S.obs) return cab + aguardandoHTML(['obs', 'foto']) + '<div class="vazio">Carregando…</div>';
   const discs = S.d.disciplinas.slice().sort((a, b) => nat(a.nome, b.nome));
   const fp = {}; S.obs.fotos.forEach(f => { (fp[f.observacao_id] = fp[f.observacao_id] || []).push(f); });
-  const locais = unicos(S.obs.lista.map(o => o.local).filter(Boolean)).sort(nat);
-  const lista = obsFiltradas();
-  return cab + '<div class="barra">' + (discs.length > 1 ? '<div class="campo"><label>Disciplina</label><select onchange="S.filtros.obs.disc=this.value;render()">' + opcoes(discs.map(d => [d.id, d.nome]), F.disc, 'Todas') + '</select></div>' : '') +
-    (locais.length > 1 ? '<div class="campo"><label>Local</label><select onchange="S.filtros.obs.local=this.value;render()">' + opcoes(locais.map(l => [l, l]), F.local, 'Todos') + '</select></div>' : '') +
-    '<div class="campo"><label>Situação</label><select onchange="S.filtros.obs.status=this.value;render()">' + opcoes([['Aberta', 'Abertas'], ['Resolvida', 'Resolvidas']], F.status, 'Todas') + '</select></div></div>' +
+  const locais = unicos(S.obs.lista.filter(o => (o.relacionada === CONF) === !!conf).map(o => o.local).filter(Boolean)).sort(nat);
+  const lista = obsFiltradas(conf);
+  return cab + '<div class="barra">' + (discs.length > 1 ? '<div class="campo"><label>Disciplina</label><select onchange="S.filtros.'+K+'.disc=this.value;render()">' + opcoes(discs.map(d => [d.id, d.nome]), F.disc, 'Todas') + '</select></div>' : '') +
+    (locais.length > 1 ? '<div class="campo"><label>Local</label><select onchange="S.filtros.'+K+'.local=this.value;render()">' + opcoes(locais.map(l => [l, l]), F.local, 'Todos') + '</select></div>' : '') +
+    '<div class="campo"><label>Situação</label><select onchange="S.filtros.'+K+'.status=this.value;render()">' + opcoes([['Aberta', 'Abertas'], ['Resolvida', 'Resolvidas']], F.status, 'Todas') + '</select></div></div>' +
     aguardandoHTML(['obs', 'foto']) + (lista.length ? lista.map(o => cardObs(o, fp[o.id] || [])).join('') : '<div class="vazio">Nenhuma observação.</div>');
 }
-function obsFiltradas() {
-  const F = S.filtros.obs;
-  return S.obs.lista.filter(o => (!F.disc || o.disciplina_id === F.disc) && (!F.local || o.local === F.local) && (!F.status || (F.status === 'Aberta') === (o.status !== 'Resolvida')))
+function obsFiltradas(conf) {
+  const F = S.filtros[conf ? 'conf' : 'obs'];
+  return S.obs.lista.filter(o => (o.relacionada === CONF) === !!conf).filter(o => (!F.disc || o.disciplina_id === F.disc) && (!F.local || o.local === F.local) && (!F.status || (F.status === 'Aberta') === (o.status !== 'Resolvida')))
     .sort((a, b) => (a.status === 'Resolvida') - (b.status === 'Resolvida') || String(b.criado_em).localeCompare(String(a.criado_em)));
 }
 let OB = null; let OBMODAL = null; let OBULT = null;
-function abrirNovaObs() {
+function abrirNovaObs(conf) {
   const discs = S.d.disciplinas.filter(d => ativo(d) && podeEscDisc(d.id)).sort((a, b) => nat(a.nome, b.nome));
   if (!discs.length) return toast('Nenhuma disciplina liberada para você.', true);
   if (!OBULT) { try { OBULT = JSON.parse(ls.get('fvs_obult') || '{}'); } catch (e) { OBULT = {}; } }
-  OB = { id: uid(), disc: discs.length === 1 ? discs[0].id : (discs.some(d => d.id === OBULT.disc) ? OBULT.disc : ''), local: OBULT.local || '', rel: '', texto: '', fotos: [] };
+  OB = { id: uid(), disc: discs.length === 1 ? discs[0].id : (discs.some(d => d.id === OBULT.disc) ? OBULT.disc : ''), local: OBULT.local || '', rel: conf ? CONF : '', conf: !!conf, texto: '', fotos: [] };
   const aptos = S.d.apartamentos.filter(ativo).sort((a, b) => nat(a.codigo, b.codigo));
-  OBMODAL = abrirModal('Nova observação',
+  OBMODAL = abrirModal(conf ? 'Novo item da conferência' : 'Nova observação',
     (discs.length > 1 ? '<div class="campo-v"><label>Disciplina</label><select onchange="OB.disc=this.value">' + opcoes(discs.map(d => [d.id, d.nome]), OB.disc, 'Selecione…') + '</select></div>' : '') +
     '<div class="campo-v"><label>Local (apartamento, andar, área comum…)</label><input type="text" list="ob-locais" placeholder="Ex.: 32 ou Hall do 3º andar" value="' + h(OB.local) + '" oninput="OB.local=this.value"><datalist id="ob-locais">' + aptos.map(a => '<option value="' + h(a.codigo) + '">').join('') + '</datalist></div>' +
-    '<div class="campo-v"><label>Relacionada a (opcional)</label><input type="text" placeholder="Ex.: equipe da Civil, fornecedor X" oninput="OB.rel=this.value"></div>' +
-    '<div class="campo-v"><label>O que aconteceu</label><textarea placeholder="Ex.: danificaram o meu fio no quadro do 32" oninput="OB.texto=this.value"></textarea></div>' +
+    (conf ? '' : '<div class="campo-v"><label>Relacionada a (opcional)</label><input type="text" placeholder="Ex.: equipe da Civil, fornecedor X" oninput="OB.rel=this.value"></div>') +
+    '<div class="campo-v"><label>' + (conf ? 'O que falta' : 'O que aconteceu') + '</label><textarea placeholder="' + (conf ? 'Ex.: faltando base da banheira' : 'Ex.: danificaram o meu fio no quadro do 32') + '" oninput="OB.texto=this.value"></textarea></div>' +
     '<div class="campo-v"><label>Fotos</label><div class="fotos" id="ob-fotos"></div></div>',
     { largo: true, rodape: '<button class="btn sec" id="ob-salvar2" type="button" onclick="salvarObs(true)">Salvar e adicionar outra</button><button class="btn" id="ob-salvar" type="button" onclick="salvarObs()">Salvar</button>' });
   desenharObsFotos();
@@ -1427,23 +1430,23 @@ async function salvarObs(outra) {
   try {
     const passos = [{ action: 'salvarObservacao', params: { observacao: { id: OB.id, disciplina_id: OB.disc, local: OB.local, relacionada: OB.rel, texto: OB.texto } } }];
     OB.fotos.forEach(f => passos.push({ action: 'uploadFoto', params: { id: f.id, tipo: 'observacao', observacao_id: OB.id, dataUrl: f.dataUrl } }));
-    await enfileirar('obs', 'Observação · ' + nomeDiscId(OB.disc) + (OB.local ? ' · ' + OB.local : ''), passos);
+    await enfileirar('obs', (OB.conf ? 'Conferência · ' : 'Observação · ') + nomeDiscId(OB.disc) + (OB.local ? ' · ' + OB.local : ''), passos);
     fecharModal(OBMODAL); OBMODAL = null; render();
     toast('Observação guardada no aparelho. Enviando…');
     processarFila();
-    if (outra) abrirNovaObs();
+    if (outra) abrirNovaObs(OB.conf);
   } catch (e) { if ($('#ob-salvar')) { btn.disabled = false; $('#ob-salvar2').disabled = false; } toast('Não foi possível guardar neste aparelho: ' + e.message, true); }
 }
-async function gerarPDFObs() {
+async function gerarPDFObs(conf) {
   try {
-    const lista = obsFiltradas().slice().sort((a, b) => nat(a.disciplina_nome, b.disciplina_nome) || nat(a.local || '', b.local || '') || String(a.criado_em).localeCompare(String(b.criado_em)));
+    const lista = obsFiltradas(conf).slice().sort((a, b) => nat(a.disciplina_nome, b.disciplina_nome) || nat(a.local || '', b.local || '') || String(a.criado_em).localeCompare(String(b.criado_em)));
     if (!lista.length) return toast('Não há observações nesse filtro.', true);
     progresso('Montando PDF…');
-    const F = S.filtros.obs; const doc = novoPDF();
+    const F = S.filtros[conf ? 'conf' : 'obs']; const doc = novoPDF();
     const fp = {}; S.obs.fotos.forEach(f => { (fp[f.observacao_id] = fp[f.observacao_id] || []).push(f); });
     Object.keys(fp).forEach(k => fp[k].sort((a, b) => String(a.criado_em).localeCompare(String(b.criado_em))));
     await prefetchFotos([].concat.apply([], lista.map(o => (fp[o.id] || []).map(f => f.id))), (n, t) => progresso('Montando PDF…', 'Carregando fotos ' + n + ' de ' + t));
-    pdfCabecalho(doc, 'RELATÓRIO DE VISTORIA', null);
+    pdfCabecalho(doc, conf ? 'CONFERÊNCIA GERAL' : 'RELATÓRIO DE OBSERVAÇÕES', null);
     let y = 40;
     const discNome = F.disc ? nomeDiscId(F.disc) : 'Todas as disciplinas';
     doc.setFont('helvetica', 'bold'); doc.setFontSize(10); doc.setTextColor(...COR.dourado);
@@ -1491,7 +1494,7 @@ async function gerarPDFObs() {
     }
     pdfRodape(doc, 0);
     const dd = hoje().split('-');
-    doc.save('Vistoria - ' + nomeArquivoLimpo(F.disc ? nomeDiscId(F.disc) : 'Geral').replace(/_/g, ' ') + ' - ' + dd[2] + '-' + dd[1] + '-' + dd[0].slice(2) + '.pdf');
+    doc.save((conf ? 'Conferência - ' : 'Observações - ') + nomeArquivoLimpo(F.disc ? nomeDiscId(F.disc) : 'Geral').replace(/_/g, ' ') + ' - ' + dd[2] + '-' + dd[1] + '-' + dd[0].slice(2) + '.pdf');
     progresso(null);
   } catch (e) { progresso(null); toast(e.message, true); }
 }
