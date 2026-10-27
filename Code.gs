@@ -14,7 +14,7 @@
  * Cadastros → Usuários; só registram e veem as próprias fotos de andamento).
  */
 
-const VERSAO = '1.14.0';
+const VERSAO = '1.14.1';
 /** Enquanto true, usuário que AINDA NÃO tem senha definida entra sem senha. Quem já tem senha continua exigindo. */
 const PERMITIR_SEM_SENHA = false;
 const TZ = 'America/Sao_Paulo';
@@ -69,7 +69,14 @@ function ss_() {
 
 function aba_(nome) {
   if (ABAS_MEM_[nome]) return ABAS_MEM_[nome];
-  const sh = ss_().getSheetByName(nome);
+  let sh = ss_().getSheetByName(nome);
+  if (!sh && ABAS[nome]) { // cria a aba que faltar, sem depender do setup()
+    const cab = ABAS[nome];
+    sh = ss_().insertSheet(nome);
+    sh.getRange(1, 1, sh.getMaxRows(), cab.length).setNumberFormat('@');
+    sh.getRange(1, 1, 1, cab.length).setValues([cab]).setFontWeight('bold').setBackground('#6b6f73').setFontColor('#ffffff');
+    sh.setFrozenRows(1);
+  }
   if (!sh) throw new Error('Aba "' + nome + '" não encontrada. Rode setup() no Apps Script.');
   ABAS_MEM_[nome] = sh;
   return sh;
